@@ -2,11 +2,15 @@
 from nvim
 
 	:Lazy
-	:Mason
 	:checkhealth vim.lsp
-	:LspInfo
+	:LspClients
 	:Inspect
 	:set filetype?
+
+no?
+
+	:Mason
+	:LspInfo
 
 bins
 
