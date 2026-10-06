@@ -15,7 +15,8 @@ With lazy.nvim. While the plugin lives on disk, point `dir` at it:
 ```lua
 {
 	dir = '~/path/to/genja-completion011.nvim', -- later: 'you/genja-completion011.nvim'
-	main = 'genja',
+	event = { 'BufReadPre', 'BufNewFile', 'VeryLazy' },
+	cmd = 'Mason',
 	dependencies = {
 		-- LSP
 		'neovim/nvim-lspconfig',
@@ -32,12 +33,21 @@ With lazy.nvim. While the plugin lives on disk, point `dir` at it:
 		{ 'folke/lazydev.nvim', ft = 'lua', opts = {} }, -- Neovim API for lua_ls
 	},
 	opts = {},
+	config = function(_, opts)
+		require('genja.comps').setup(opts)
+	end,
 }
 ```
 
-`opts = {}` makes lazy.nvim call `require('genja').setup({})`. With any other
-plugin manager, put the plugin and its dependencies on the runtimepath and make
-that call yourself.
+The entry point is `require('genja.comps')`, not `require('genja')`: a Neovim
+config with its own `lua/genja/init.lua` would shadow a plugin `genja` module,
+so `main = 'genja'` would run that file instead. With any other plugin manager,
+put the plugin and its dependencies on the runtimepath and call
+`require('genja.comps').setup({})` yourself.
+
+Nothing else may call `cmp.setup()` or the LSP setup: no `config` on the
+nvim-cmp and nvim-lspconfig specs. Without `require('genja.comps').setup()`,
+nvim-cmp has no sources and the menu never opens while you type.
 
 ## Options
 
@@ -139,6 +149,25 @@ for `lsp.diagnostics`:
 	virtual_lines = { current_line = true },
 }
 ```
+
+## Alternatives to nvim-cmp
+
+Not used yet. Notes for a later comparison:
+
+- **Built-in completion** (no plugin). On 0.11+, call
+  `vim.lsp.completion.enable(true, client.id, buf, { autotrigger = true })` in
+  an `LspAttach` autocommand. 0.12+ also has the `'autocomplete'` option, with
+  sources set by `'complete'`. Fewer dependencies, but you get only LSP items
+  in the plain popup menu. Buffer words, file paths, command-line completion
+  and lazydev would have to be rebuilt on `'complete'`, and the
+  `function(cmp, opts)` feature files would not apply.
+- **[blink.cmp](https://github.com/saghen/blink.cmp)**. It is fast (a Rust
+  fuzzy matcher), opens the menu as you type by default, has LSP, path,
+  buffer, snippet and command-line sources built in, and lazydev ships a
+  source for it. Switching means rewriting `lua/genja/completion/*`, because
+  the feature files fill in an nvim-cmp `setup()` table. The LSP half only
+  needs `require('blink.cmp').get_lsp_capabilities()` in place of
+  `cmp_nvim_lsp`.
 
 ## Check that it works
 
