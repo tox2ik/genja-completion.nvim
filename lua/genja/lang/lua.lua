@@ -8,7 +8,11 @@ return {
 				Lua = {
 					diagnostics = {
 						disable = { 'lowercase-global' },
-						globals = { 'IsDir' },
+						globals = {
+							'require', -- lua_ls can flag require while it is still loading its builtins ??
+
+							'IsDir',
+						},
 					},
 				},
 			},
