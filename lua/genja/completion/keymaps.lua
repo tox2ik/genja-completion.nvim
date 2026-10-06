@@ -34,7 +34,8 @@ return function(cmp, opts)
 		['<F2>'] = cmp.mapping.select_next_item(),
 		['<F3>'] = cmp.mapping.select_prev_item(),
 		['<CR>'] = cmp.mapping.confirm({ behavior = cmp.ConfirmBehavior.Insert, select = false }),
-		['<C-k>'] = cmp.mapping.abort(), -- jolemak: <C-e> sends ^K
+		-- ['<C-k>'] = cmp.mapping.abort(), -- jolemak: <C-e> sends ^K
+		[''] = cmp.mapping.abort(), -- on jolemak  <c-e> sends ^K
 		['<Tab>'] = cmp.mapping(tab, { 'i', 's' }),
 		['<S-Tab>'] = cmp.mapping(shift_tab, { 'i', 's' }),
 		['<C-Space>'] = cmp.mapping.complete(),
