@@ -114,4 +114,19 @@ function M.setup(opts)
 	install_tools(tools)
 end
 
+---The settings in effect: what setup() resolved, or before setup() the defaults
+---merged with local.lua (setup() opts are not known yet then).
+---Other config reads these, e.g. require('genja.lsp').get().mason
+---@return genja.lsp.Opts
+function M.get()
+	return M.config or load_config()
+end
+
+---Is a language turned on? Same merge as setup(), so local.lua counts.
+---@param name string key in `enabled`, e.g. 'php'
+---@return boolean
+function M.enabled(name)
+	return (M.get().enabled or {})[name] == true
+end
+
 return M

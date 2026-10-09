@@ -1,0 +1,289 @@
+-- PHP: intelephense, plus laravel-ls in Laravel projects.
+-- The alternative to php.lua (phpactor). The loader only reads lang/<name>.lua,
+-- so this file is skipped as it is. To try it: rename php.lua to php.lua.phpactor
+-- and this file to php.lua, then restart Neovim (and :MasonInstall intelephense
+-- if it isn't installed yet).
+--
+-- Intelephense is a Node server and runs natively on Windows, so none of
+-- phpactor's Windows workarounds (phpactor-windows.md) are needed. Completion,
+-- hover, diagnostics, definition, references, formatting and document symbols
+-- are free. Rename, implementation, type definition, code actions, folding and
+-- the rest need a licence: put the key in ~/intelephense/licence.txt (intelephense
+-- reads it there itself), or set INTELEPHENSE_LICENCE_KEY.
+--
+-- Same project detection as php.lua, decided per project root when it starts:
+--   Root       .phproject first, then composer.json, wp-config.php, artisan, .git.
+--   WordPress  wp-config.php or wp-load.php in the root or above it. Adds
+--              intelephense's bundled wordpress stubs; nothing to download.
+--   Laravel    artisan in the root. Facades and model magic need
+--              barryvdh/laravel-ide-helper's _ide_helper*.php files (genja says so
+--              once); they are indexed like any other project file.
+--   Symfony    bin/console or symfony.lock. Intelephense has no Symfony extension;
+--              the container isn't understood, the code is.
+--
+-- Intelephense runs none of the tools below, so genja runs them on save.
+-- The project's vendor/bin copy wins over Mason's. Same conditions as php.lua:
+--   phpstan       diagnostics, only when the project has a phpstan config.
+--   phpcs         diagnostics, WordPress only, with a phpcs config or WPCS in vendor/.
+--   php-cs-fixer  fixes the file, only when the project has a .php-cs-fixer config
+--                 and isn't WordPress or Laravel. Otherwise vim.lsp.buf.format()
+--                 uses intelephense's own formatter.
+--   pint          Laravel only, fixes the file.
+
+local is_win = vim.fn.has('win32') == 1
+
+-- intelephense's default stubs. Setting `stubs` replaces the list, so WordPress
+-- projects get this plus 'wordpress'. From intelephense 1.18.5.
+local default_stubs = {
+	'apache', 'bcmath', 'bz2', 'calendar', 'com_dotnet', 'Core', 'ctype', 'curl', 'date',
+	'dba', 'dom', 'enchant', 'exif', 'fileinfo', 'filter', 'fpm', 'ftp', 'gd', 'hash',
+	'iconv', 'imap', 'intl', 'json', 'ldap', 'libxml', 'mbstring', 'mcrypt', 'mssql',
+	'mysqli', 'oci8', 'odbc', 'openssl', 'pcntl', 'pcre', 'PDO', 'pgsql', 'Phar', 'posix',
+	'pspell', 'random', 'readline', 'Reflection', 'regex', 'session', 'shmop', 'SimpleXML',
+	'snmp', 'soap', 'sockets', 'sodium', 'SPL', 'sqlite3', 'standard', 'superglobals',
+	'sybase', 'sysvmsg', 'sysvsem', 'sysvshm', 'tidy', 'tokenizer', 'uri', 'xml',
+	'xmlreader', 'xmlrpc', 'xmlwriter', 'Zend OPcache', 'zip', 'zlib',
+}
+
+---@param root string
+---@param name string
+local function has(root, name)
+	return vim.uv.fs_stat(vim.fs.joinpath(root, name)) ~= nil
+end
+
+---@param root string
+---@param names string[]
+local function has_any(root, names)
+	for _, name in ipairs(names) do
+		if has(root, name) then
+			return true
+		end
+	end
+	return false
+end
+
+---Full path to a tool: the project's vendor/bin first, then PATH (Mason's bin is on it).
+---@param root string
+---@param name string
+---@return string?
+local function bin(root, name)
+	local vendored = vim.fs.joinpath(root, 'vendor', 'bin', name .. (is_win and '.bat' or ''))
+	if vim.uv.fs_stat(vendored) then
+		return vendored
+	end
+	local found = vim.fn.exepath(name)
+	return found ~= '' and found or nil
+end
+
+---What genja knows about the project at root.
+---@param root string
+local function detect(root)
+	local wordpress = vim.fs.root(root, { 'wp-config.php', 'wp-load.php' }) ~= nil
+	local laravel = has(root, 'artisan')
+	return {
+		wordpress = wordpress,
+		laravel = laravel,
+		phpstan = has_any(root, { 'phpstan.neon', 'phpstan.neon.dist', 'phpstan.dist.neon' }),
+		phpcs_config = has_any(root, { 'phpcs.xml', '.phpcs.xml', 'phpcs.xml.dist', '.phpcs.xml.dist' }),
+		wpcs = has(root, 'vendor/wp-coding-standards/wpcs'),
+		cs_fixer = not wordpress and not laravel
+			and has_any(root, { '.php-cs-fixer.php', '.php-cs-fixer.dist.php' }),
+	}
+end
+
+local warned = {} ---@type table<string, true>
+
+---Intelephense settings for the project at root.
+---@param root string
+---@return table
+local function project_settings(root)
+	local project = detect(root)
+	local settings = {
+		-- _ide_helper.php and the WordPress stubs are well over the 1 MB default.
+		files = { maxSize = 10000000 },
+	}
+	if project.wordpress then
+		settings.stubs = vim.list_extend(vim.deepcopy(default_stubs), { 'wordpress' })
+	end
+
+	if project.laravel and not has(root, '_ide_helper.php') and not warned[root] then
+		warned[root] = true
+		vim.notify(
+			'genja: Laravel without _ide_helper.php, facades will not resolve. In the project run:\n'
+				.. '  composer require --dev barryvdh/laravel-ide-helper\n'
+				.. '  php artisan ide-helper:generate && php artisan ide-helper:models -N\n'
+				.. 'and add both artisan lines to composer.json "post-update-cmd" to keep them fresh.',
+			vim.log.levels.INFO
+		)
+	end
+
+	return { intelephense = settings }
+end
+
+---Reload buf from disk after a tool rewrote the file, keeping the view.
+---@param buf integer
+local function reload(buf)
+	if vim.api.nvim_buf_is_valid(buf) and not vim.bo[buf].modified then
+		vim.api.nvim_buf_call(buf, function()
+			local view = vim.fn.winsaveview()
+			vim.cmd('silent! edit')
+			vim.fn.winrestview(view)
+		end)
+	end
+end
+
+local lint_ns = {
+	phpstan = vim.api.nvim_create_namespace('genja_phpstan'),
+	phpcs = vim.api.nvim_create_namespace('genja_phpcs'),
+}
+
+---Parse a tool's JSON report into diagnostics for one file.
+---@param tool 'phpstan'|'phpcs'
+---@param stdout string
+---@return vim.Diagnostic[]
+local function parse_report(tool, stdout)
+	local ok, report = pcall(vim.json.decode, stdout ~= '' and stdout or '{}')
+	if not ok or type(report) ~= 'table' or type(report.files) ~= 'table' then
+		return {}
+	end
+	local diagnostics = {}
+	-- One file per run, so whatever key it is listed under is ours.
+	for _, file in pairs(report.files) do
+		for _, m in ipairs(file.messages or {}) do
+			table.insert(diagnostics, {
+				lnum = math.max((m.line or 1) - 1, 0),
+				col = math.max((m.column or 1) - 1, 0),
+				message = m.message,
+				source = tool,
+				code = m.identifier or m.source,
+				severity = (tool == 'phpcs' and m.type == 'WARNING') and vim.diagnostic.severity.WARN
+					or vim.diagnostic.severity.ERROR,
+			})
+		end
+	end
+	return diagnostics
+end
+
+---Run a linter on the saved file and show its findings as diagnostics.
+---@param tool 'phpstan'|'phpcs'
+---@param cmd string[]
+---@param root string
+---@param buf integer
+local function lint(tool, cmd, root, buf)
+	local file = vim.api.nvim_buf_get_name(buf)
+	vim.system(vim.list_extend(vim.deepcopy(cmd), { file }), { cwd = root, text = true },
+		vim.schedule_wrap(function(out)
+			if not vim.api.nvim_buf_is_valid(buf) then
+				return
+			end
+			local diagnostics = parse_report(tool, out.stdout or '')
+			if #diagnostics == 0 and out.code ~= 0 and (out.stdout or '') == '' then
+				vim.notify(tool .. ': ' .. (out.stderr or ''), vim.log.levels.WARN)
+			end
+			vim.diagnostic.set(lint_ns[tool], buf, diagnostics)
+		end))
+end
+
+---Run a fixer on the saved file, then reload it.
+---@param name string
+---@param cmd string[]
+---@param root string
+---@param buf integer
+local function fix(name, cmd, root, buf)
+	local file = vim.api.nvim_buf_get_name(buf)
+	vim.system(vim.list_extend(vim.deepcopy(cmd), { file }), { cwd = root }, vim.schedule_wrap(function(out)
+		if out.code ~= 0 then
+			vim.notify(name .. ': ' .. (out.stderr ~= '' and out.stderr or out.stdout), vim.log.levels.WARN)
+		else
+			reload(buf)
+		end
+	end))
+end
+
+---Set up the on-save tools for buf, per the project at root.
+---@param root string
+---@param buf integer
+local function on_save_tools(root, buf)
+	local project = detect(root)
+	local jobs = {} ---@type fun()[]
+
+	local phpstan = bin(root, 'phpstan')
+	if phpstan and project.phpstan then
+		table.insert(jobs, function()
+			lint('phpstan', { phpstan, 'analyse', '--error-format=json', '--no-progress', '--no-ansi',
+				'--memory-limit=1G' }, root, buf)
+		end)
+	end
+
+	local phpcs = bin(root, 'phpcs')
+	if phpcs and project.wordpress and (project.phpcs_config or project.wpcs) then
+		local cmd = { phpcs, '--report=json', '-q' }
+		if not project.phpcs_config then
+			table.insert(cmd, '--standard=WordPress')
+		end
+		table.insert(jobs, function()
+			lint('phpcs', cmd, root, buf)
+		end)
+	end
+
+	local fixer = project.laravel and bin(root, 'pint')
+		or project.cs_fixer and bin(root, 'php-cs-fixer')
+	if fixer then
+		local cmd = project.laravel and { fixer } or { fixer, 'fix', '--quiet' }
+		table.insert(jobs, function()
+			fix(project.laravel and 'pint' or 'php-cs-fixer', cmd, root, buf)
+		end)
+	end
+
+	if #jobs == 0 then
+		return
+	end
+	vim.api.nvim_create_autocmd('BufWritePost', {
+		buffer = buf,
+		group = vim.api.nvim_create_augroup('genja_php_on_save_' .. buf, { clear = true }),
+		callback = function()
+			for _, job in ipairs(jobs) do
+				job()
+			end
+		end,
+	})
+end
+
+return {
+	servers = {
+		intelephense = {
+			-- .phproject: an empty file that marks a project root by hand; it wins over the rest.
+			-- WordPress and Laravel roots often have neither composer.json nor .git.
+			root_markers = { '.phproject', 'composer.json', 'wp-config.php', 'artisan', '.git' },
+			init_options = {
+				licenceKey = vim.env.INTELEPHENSE_LICENCE_KEY,
+				-- Index cache per project, out of the project tree.
+				storagePath = vim.fs.joinpath(vim.fn.stdpath('cache'), 'intelephense'),
+			},
+			settings = {
+				intelephense = {
+					files = { maxSize = 10000000 },
+				},
+			},
+			on_init = function(client)
+				if not client.root_dir then
+					return
+				end
+				-- Per project, without touching the shared config table.
+				client.settings = vim.tbl_deep_extend('force', client.settings or {},
+					project_settings(client.root_dir))
+				client:notify('workspace/didChangeConfiguration', { settings = client.settings })
+			end,
+			on_attach = function(client, buf)
+				if client.root_dir then
+					on_save_tools(client.root_dir, buf)
+				end
+			end,
+		},
+		-- Routes, views, config and env keys. Starts only where there is an artisan file.
+		laravel_ls = {
+			workspace_required = true,
+		},
+	},
+	tools = { 'phpstan', 'php-cs-fixer', 'phpcs', 'pint', 'php-debug-adapter' },
+}

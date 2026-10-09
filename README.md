@@ -86,6 +86,14 @@ require('genja').setup({
 
 `:lua =require('genja.lsp').config` shows the LSP settings in effect.
 
+Other config can read the same settings, also before `setup()` has run (then
+without the `setup()` opts):
+
+```lua
+require('genja.lsp').get()          -- the merged settings table
+require('genja.lsp').enabled('php') -- true when PHP is turned on
+```
+
 ## Languages
 
 | key          | servers                  | extra tools       |
@@ -94,13 +102,18 @@ require('genja').setup({
 | `c_cpp`      | clangd                   |                   |
 | `go`         | gopls                    |                   |
 | `lua`        | lua_ls                   |                   |
-| `php`        | phpactor\*               |                   |
+| `php`        | phpactor\*, laravel_ls   | phpstan, php-cs-fixer, phpcs, pint, php-debug-adapter |
 | `powershell` | powershell_es            |                   |
 | `python`     | pyrefly, ruff            |                   |
 | `typescript` | tsc, eslint              |                   |
 
 \* needs PHP 8.2+ on PATH. WordPress, Laravel and Symfony projects are detected;
-see the top of `lua/genja/lang/php.lua`.
+see the top of `lua/genja/lang/php.lua` for which tools run where.
+On Windows phpactor needs several workarounds, all automatic; see
+`phpactor-windows.md`.
+`lua/genja/lang/php.lua.intelephense` is the same setup on intelephense instead
+(no Windows workarounds; licence optional). The loader skips it until it is
+renamed to `php.lua`; see the top of the file.
 
 ### PHP: worth trying later
 
