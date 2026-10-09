@@ -94,12 +94,13 @@ require('genja').setup({
 | `c_cpp`      | clangd                   |                   |
 | `go`         | gopls                    |                   |
 | `lua`        | lua_ls                   |                   |
-| `php`        | intelephense, phpactor\* |                   |
+| `php`        | phpactor\*               |                   |
 | `powershell` | powershell_es            |                   |
 | `python`     | pyrefly, ruff            |                   |
 | `typescript` | tsc, eslint              |                   |
 
-\* not on Windows.
+\* needs PHP 8.2+ on PATH. WordPress, Laravel and Symfony projects are detected;
+see the top of `lua/genja/lang/php.lua`.
 
 ### Add or change a language
 
