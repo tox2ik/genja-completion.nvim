@@ -102,6 +102,13 @@ require('genja').setup({
 \* needs PHP 8.2+ on PATH. WordPress, Laravel and Symfony projects are detected;
 see the top of `lua/genja/lang/php.lua`.
 
+### PHP: worth trying later
+
+- [phptools.nvim](https://github.com/ccaglak/phptools.nvim): generates missing
+  methods, classes, getters and setters, plus Laravel/Symfony-aware `gf`.
+  Overlaps with phpactor's code actions; not tested together. Needs Neovim 0.12
+  and ripgrep.
+
 ### Add or change a language
 
 Language files are looked up on the runtimepath, so they do not have to live in
