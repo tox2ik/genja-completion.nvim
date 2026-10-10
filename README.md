@@ -106,6 +106,7 @@ require('genja.lsp').enabled('php') -- true when PHP is turned on
 | `powershell` | powershell_es            |                   |
 | `python`     | pyrefly, ruff            |                   |
 | `typescript` | tsc, eslint              |                   |
+| `vim`        | vimls                    |                   |
 
 \* needs PHP 8.2+ on PATH. WordPress, Laravel and Symfony projects are detected;
 see the top of `lua/genja/lang/php.lua` for which tools run where.

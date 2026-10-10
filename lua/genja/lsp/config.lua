@@ -26,6 +26,7 @@ return {
 		powershell = false,
 		bash = true,
 		lua = true,
+		vim = true,
 
 		-- langs
 		typescript = false,
