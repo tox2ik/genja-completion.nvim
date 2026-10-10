@@ -1,45 +1,256 @@
--- PHP: phpactor, plus laravel-ls in Laravel projects.
+-- PHP: phpactor running inside WSL, plus laravel-ls in Laravel projects.
 -- Completion, hover, diagnostics, definition, references, rename, code actions
 -- (import class, generate method, ...), implementation, type definition.
--- Needs PHP 8.2+ on PATH; Mason installs phpactor.phar and a wrapper that runs it with `php`.
+--
+-- Windows: Neovim starts `wsl.exe [-d <distro>] -e phpactor language-server`
+-- and talks to it over stdio. Paths in LSP messages are translated both ways:
+--   C:\x, file:///C:/x                     -> /mnt/c/x, file:///mnt/c/x
+--   \\wsl.localhost\<distro>\home\x        -> /home/x
+--   file:///home/x (from phpactor)         -> file:////wsl.localhost/<distro>/home/x
+-- Linux PHP has ext-posix and a working event loop on pipes, so none of the
+-- native Windows workarounds (doc/phpactor-windows.md) are needed.
+-- Other systems: plain phpactor from Mason, as lspconfig starts it.
+--
+-- Settings, in lua/genja/lsp/config.lua or local.lua:
+--   phpactor_wsl = {
+--     distro  = 'AlmaLinux-9',  -- wsl.exe -d; nil: the default distro (`wsl -l -v`)
+--     install = true,           -- install PHP and phpactor in the distro when missing
+--   }
+-- :PhpactorWslInstall installs or updates PHP 8.2+ and phpactor in the distro
+-- (apt on Debian/Ubuntu, dnf on AlmaLinux/Rocky/RHEL/Fedora), as root through
+-- `wsl -u root`, so no sudo password is asked. See doc/phpactor-wsl.md.
+--
+-- Projects under /mnt/c are read through WSL's file bridge: indexing a big
+-- project there is much slower than on the Linux side (\\wsl.localhost\...).
 --
 -- Frameworks, decided per project root when phpactor starts:
 --   WordPress  wp-config.php or wp-load.php in the root or above it.
 --              Indexes php-stubs/wordpress-stubs, downloaded once into
 --              stdpath('data')/genja/php-stubs/wordpress. To refresh: delete it,
---              then `phpactor index:build --reset` in the project.
---   Laravel    artisan in the root. Phpactor reads vendor/ on its own; facades and
---              model magic need barryvdh/laravel-ide-helper's _ide_helper*.php files,
---              which are indexed like any other project file.
+--              then `phpactor index:build --reset` in the project (inside WSL).
+--   Laravel    artisan in the root. Facades and model magic need
+--              barryvdh/laravel-ide-helper's _ide_helper*.php files.
 --   Symfony    bin/console or symfony.lock in the root. Turns on phpactor's Symfony
---              extension (container services). It reads the container dump in var/cache/dev,
---              so run the app or `bin/console cache:warmup` once.
+--              extension; run the app or `bin/console cache:warmup` once.
 --
 -- Tools phpactor runs itself, shown as diagnostics or used by vim.lsp.buf.format().
--- The project's vendor/bin copy wins over Mason's.
---   phpstan       only when the project has a phpstan config, so WordPress code
---                 without one is not buried in "function not found".
---   php-cs-fixer  formatting, except in WordPress and Laravel projects.
+-- The project's vendor/bin copy wins over one on the distro's PATH. Windows' own
+-- (Mason) copies can't run inside WSL and are not used there.
+--   phpstan       only when the project has a phpstan config.
+--   php-cs-fixer  only when the project has a php-cs-fixer config, never in
+--                 WordPress or Laravel projects.
 --   phpcs         WordPress only, when the project has a phpcs config or WPCS in vendor/.
 --   pint          Laravel only, run on the file after each save (phpactor can't run it).
 
 local is_win = vim.fn.has('win32') == 1
 
-local phpactor_phar = vim.fs.joinpath(vim.fn.stdpath('data'), 'mason', 'packages', 'phpactor', 'phpactor.phar')
--- Windows: PHP's own stubs, copied out of the .phar by scripts/phpactor-nocheck.php.
-local builtin_stubs = vim.fs.joinpath(vim.fs.dirname(phpactor_phar), 'phpstorm-stubs')
--- Windows: the helper amphp/process needs to start programs (php -l, phpstan,
--- php-cs-fixer, phpcs). The .phar leaves it out; the wrapper points amphp here.
--- Pinned to the amphp/process version inside phpactor.phar.
-local process_wrapper = vim.fs.joinpath(vim.fs.dirname(phpactor_phar), 'ProcessWrapper64.exe')
-local process_wrapper_url = 'https://raw.githubusercontent.com/amphp/process/v1.1.9/bin/windows/ProcessWrapper64.exe'
+local opts = vim.tbl_extend('force', { install = true }, require('genja.lsp').get().phpactor_wsl or {})
 
 local stubs_dir = vim.fs.joinpath(vim.fn.stdpath('data'), 'genja', 'php-stubs', 'wordpress')
 local stubs_file = vim.fs.joinpath(stubs_dir, 'wordpress-stubs.php')
 local stubs_url = 'https://raw.githubusercontent.com/php-stubs/wordpress-stubs/master/wordpress-stubs.php'
 
+local plugin_root = vim.fs.dirname(vim.fs.dirname(vim.fs.dirname(vim.fs.dirname(
+	debug.getinfo(1, 'S').source:sub(2)))))
+local install_script = vim.fs.joinpath(plugin_root, 'scripts', 'phpactor-wsl-install.sh')
+-- PHP's own stubs, copied out of the .phar by the install script. Phpactor's
+-- default reads them inside the .phar, and phar:// paths can't be opened from Windows.
+local wsl_stubs = '/usr/local/lib/phpactor/phpstorm-stubs'
+
+---wsl.exe with the configured distro, user and command.
+---@param args string[]
+---@param user? string
+---@return string[]
+local function wsl(args, user)
+	local cmd = { 'wsl.exe' }
+	if opts.distro then
+		vim.list_extend(cmd, { '-d', opts.distro })
+	end
+	if user then
+		vim.list_extend(cmd, { '-u', user })
+	end
+	return vim.list_extend(cmd, args)
+end
+
+-- wsl.exe writes its own messages in UTF-16 unless told otherwise.
+local wsl_env = { WSL_UTF8 = '1' }
+
+---@param s? string
+local function clean(s)
+	return ((s or ''):gsub('%z', ''):gsub('\r', ''))
+end
+
+---What the distro has, found once per session (and again after an install).
+---@class genja.PhpWsl
+---@field name string   $WSL_DISTRO_NAME, for \\wsl.localhost\<name>
+---@field bins table<string, string>
+---@type genja.PhpWsl?
+local distro
+
+local tool_names = { 'phpactor', 'php', 'phpstan', 'php-cs-fixer', 'phpcs', 'pint' }
+
+---@return genja.PhpWsl?, string? error
+local function probe()
+	if distro then
+		return distro
+	end
+	local script = 'echo "$WSL_DISTRO_NAME"; for t in ' .. table.concat(tool_names, ' ')
+		.. '; do p=$(command -v "$t") && case "$p" in /mnt/*) ;; *) echo "$t=$p";; esac; done; [ -d ' .. wsl_stubs .. ' ] && echo stubs=' .. wsl_stubs .. '; true'
+	local out = vim.system(wsl({ '-e', 'sh', '-c', script }), { env = wsl_env, text = true }):wait(60000)
+	local stdout = clean(out.stdout)
+	if out.code ~= 0 then
+		return nil, ('wsl.exe exited with %s: %s'):format(out.code, clean(out.stderr) .. stdout)
+	end
+	local lines = vim.split(stdout, '\n', { trimempty = true })
+	local found = { name = lines[1] or opts.distro or '', bins = {} }
+	for i = 2, #lines do
+		local name, path = lines[i]:match('^([^=]+)=(.+)$')
+		if name then
+			found.bins[name] = path
+		end
+	end
+	distro = found
+	return distro
+end
+
+-- Path and URI translation --------------------------------------------------
+
+---Windows path or file URI -> WSL. Anything else comes back unchanged.
+---@param s string
+---@return string
+local function to_wsl(s)
+	if s:sub(1, 7) == 'file://' then
+		local drive, rest = s:match('^file:///(%a):(.*)$')
+		if not drive then
+			drive, rest = s:match('^file:///(%a)%%3[aA](.*)$')
+		end
+		if drive then
+			return 'file:///mnt/' .. drive:lower() .. rest
+		end
+		-- A buffer under \\wsl.localhost\<distro>\ or \\wsl$\<distro>\.
+		if s:find('wsl', 1, true) then
+			local path = vim.uri_decode(s):gsub('\\', '/'):match('^file:/*[wW][sS][lL][^/]*/[^/]+(/.*)$')
+			if path then
+				return vim.uri_from_fname(path)
+			end
+		end
+		return s
+	end
+	local drive, rest = s:match('^(%a):[\\/](.*)$')
+	if drive then
+		return '/mnt/' .. drive:lower() .. '/' .. rest:gsub('\\', '/')
+	end
+	local path = s:match('^[\\/][\\/][wW][sS][lL][^\\/]*[\\/][^\\/]+([\\/].*)$')
+	if path then
+		return (path:gsub('\\', '/'))
+	end
+	return s
+end
+
+---WSL file URI -> one Neovim on Windows can open. Plain strings stay as they are.
+---@param s string
+---@return string
+local function to_win(s)
+	if s:sub(1, 8) ~= 'file:///' then
+		return s
+	end
+	local drive, rest = s:match('^file:///mnt/(%a)(/.*)$')
+	if not drive then
+		drive, rest = s:match('^file:///mnt/(%a)$'), ''
+	end
+	if drive then
+		return 'file:///' .. drive:upper() .. ':' .. (rest ~= '' and rest or '/')
+	end
+	return 'file:////wsl.localhost/' .. (distro and distro.name or '') .. s:sub(8)
+end
+
+-- Text that is never a path, even when it looks like one.
+local text_keys = { text = true, newText = true, insertText = true, label = true, value = true, message = true }
+
+---Copy of v with fn applied to every string value and table key.
+---@param v any
+---@param fn fun(s: string): string
+---@param key? any
+---@return any
+local function map(v, fn, key)
+	if type(v) == 'string' then
+		return text_keys[key] and v or fn(v)
+	end
+	if type(v) ~= 'table' then
+		return v
+	end
+	local out = {}
+	for k, x in pairs(v) do
+		out[type(k) == 'string' and fn(k) or k] = map(x, fn, k)
+	end
+	-- Keeps vim.empty_dict() and json array markers.
+	return setmetatable(out, getmetatable(v))
+end
+
+-- Install ---------------------------------------------------------------------
+
+local installing = false
+
+---Install or update PHP and phpactor in the distro, as root.
+local function install()
+	if installing then
+		return
+	end
+	local f = io.open(install_script, 'rb')
+	if not f then
+		vim.notify('genja: missing ' .. install_script, vim.log.levels.ERROR)
+		return
+	end
+	-- Fed through stdin, without CRs, so a CRLF checkout still runs.
+	local script = f:read('*a'):gsub('\r', '')
+	f:close()
+	installing = true
+	local log = vim.fs.joinpath(vim.fn.stdpath('log'), 'phpactor-wsl-install.log')
+	vim.notify(('genja: installing PHP and phpactor in WSL%s ...'):format(
+		opts.distro and (' (' .. opts.distro .. ')') or ''))
+	vim.system(wsl({ '-e', 'sh', '-s' }, 'root'), { stdin = script, env = wsl_env, text = true },
+		vim.schedule_wrap(function(out)
+			installing = false
+			distro = nil
+			local output = clean(out.stdout) .. clean(out.stderr)
+			local lf = io.open(log, 'wb')
+			if lf then
+				lf:write(output)
+				lf:close()
+			end
+			if out.code ~= 0 then
+				local last = vim.split(vim.trim(output), '\n')
+				vim.notify(('genja: phpactor install in WSL failed (%s): %s\nFull log: %s'):format(
+					out.code, last[#last] or '', log), vim.log.levels.ERROR)
+				return
+			end
+			vim.notify('genja: phpactor installed in WSL, reindexing. Log: ' .. log)
+			-- Stubs may have moved, and phpactor indexes them only on a project's
+			-- first index: stop it, drop its cache (all projects), start it again.
+			for _, client in ipairs(vim.lsp.get_clients({ name = 'phpactor' })) do
+				client:stop(true)
+			end
+			vim.defer_fn(function()
+				vim.system(wsl({ '-e', 'sh', '-c', 'rm -rf "${XDG_CACHE_HOME:-$HOME/.cache}/phpactor"' }), { env = wsl_env }):wait(30000)
+				for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+					if vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].filetype == 'php' then
+						pcall(vim.api.nvim_exec_autocmds, 'FileType', { group = 'nvim.lsp.enable', buffer = buf, modeline = false })
+					end
+				end
+			end, 1000)
+		end))
+end
+
+if is_win then
+	vim.api.nvim_create_user_command('PhpactorWslInstall', install, {
+		desc = 'Install or update PHP and phpactor in WSL (genja)',
+	})
+end
+
+-- Project settings --------------------------------------------------------------
+
 ---Download url to file unless it is already there. Blocks for a moment, on
----purpose: both files below have to exist before phpactor starts.
+---purpose: the file has to exist before phpactor starts.
 ---@param url string
 ---@param file string
 ---@param what string
@@ -55,11 +266,6 @@ local function download(url, file, what)
 		vim.uv.fs_unlink(part)
 		vim.notify('genja: could not download ' .. what .. ': ' .. (out.stderr or ''), vim.log.levels.WARN)
 	end
-end
-
----Phpactor indexes stub_paths only on its first index of a project.
-local function fetch_wordpress_stubs()
-	download(stubs_url, stubs_file, 'WordPress stubs')
 end
 
 ---@param root string
@@ -79,14 +285,18 @@ local function has_any(root, names)
 	return false
 end
 
----Full path to a tool: the project's vendor/bin first, then PATH (Mason's bin is on it).
+---Path to a tool as phpactor sees it: the project's vendor/bin first, then the
+---distro's PATH on Windows, or PATH (Mason's bin is on it) elsewhere.
 ---@param root string
 ---@param name string
 ---@return string?
 local function bin(root, name)
-	local vendored = vim.fs.joinpath(root, 'vendor', 'bin', name .. (is_win and '.bat' or ''))
+	local vendored = vim.fs.joinpath(root, 'vendor', 'bin', name)
 	if vim.uv.fs_stat(vendored) then
-		return vendored
+		return is_win and to_wsl(vendored) or vendored
+	end
+	if is_win then
+		return distro and distro.bins[name]
 	end
 	local found = vim.fn.exepath(name)
 	return found ~= '' and found or nil
@@ -99,7 +309,7 @@ end
 
 local warned = {} ---@type table<string, true>
 
----Phpactor options for the project at root.
+---Phpactor options for the project at root (a Windows path on Windows).
 ---@param root string
 ---@return table
 local function project_options(root)
@@ -108,11 +318,14 @@ local function project_options(root)
 	local laravel = is_laravel(root)
 
 	-- A plugin or theme can have its own composer.json, so look above the root too.
+	if is_win then
+		options['indexer.stub_paths'] = { wsl_stubs }
+	end
 	if wordpress then
-		fetch_wordpress_stubs()
+		download(stubs_url, stubs_file, 'WordPress stubs')
 		if vim.uv.fs_stat(stubs_file) then
-			-- This replaces the wrapper's stub path, so keep PHP's own stubs on Windows.
-			options['indexer.stub_paths'] = is_win and { builtin_stubs, stubs_dir } or { stubs_dir }
+			-- This replaces phpactor's own stub path, so keep PHP's stubs.
+			options['indexer.stub_paths'] = is_win and { wsl_stubs, to_wsl(stubs_dir) } or { '%application_root%/vendor/jetbrains/phpstorm-stubs', stubs_dir }
 			-- The stubs are one 6 MB file; the default skips anything over 1 MB.
 			options['indexer.max_filesize_to_index'] = 10000000
 		end
@@ -140,7 +353,8 @@ local function project_options(root)
 	end
 
 	local fixer = bin(root, 'php-cs-fixer')
-	if fixer and not wordpress and not laravel then
+	local fixer_config = { '.php-cs-fixer.php', '.php-cs-fixer.dist.php', '.php_cs', '.php_cs.dist' }
+	if fixer and not wordpress and not laravel and has_any(root, fixer_config) then
 		options['language_server_php_cs_fixer.enabled'] = true
 		options['language_server_php_cs_fixer.bin'] = fixer
 	end
@@ -160,6 +374,7 @@ local function project_options(root)
 end
 
 ---Laravel: run pint on the file after each save, then reload the buffer.
+---On Windows pint runs inside WSL too.
 ---@param root string
 ---@param buf integer
 local function pint_on_save(root, buf)
@@ -172,9 +387,10 @@ local function pint_on_save(root, buf)
 		group = vim.api.nvim_create_augroup('genja_pint_' .. buf, { clear = true }),
 		callback = function()
 			local file = vim.api.nvim_buf_get_name(buf)
-			vim.system({ pint, file }, { cwd = root }, vim.schedule_wrap(function(out)
+			local cmd = is_win and wsl({ '--cd', to_wsl(root), '-e', pint, to_wsl(file) }) or { pint, file }
+			vim.system(cmd, { cwd = not is_win and root or nil, env = wsl_env, text = true }, vim.schedule_wrap(function(out)
 				if out.code ~= 0 then
-					vim.notify('pint: ' .. (out.stderr ~= '' and out.stderr or out.stdout), vim.log.levels.WARN)
+					vim.notify('pint: ' .. clean(out.stderr ~= '' and out.stderr or out.stdout), vim.log.levels.WARN)
 				elseif vim.api.nvim_buf_is_valid(buf) and not vim.bo[buf].modified then
 					vim.api.nvim_buf_call(buf, function()
 						local view = vim.fn.winsaveview()
@@ -187,75 +403,58 @@ local function pint_on_save(root, buf)
 	})
 end
 
----Windows PHP has no ext-posix, and phpactor.phar refuses to start without it
----(twice: the .phar's own check, then bin/phpactor's). scripts/phpactor-nocheck.php
----loads the same .phar without those checks.
----
----Phpactor is also run as a TCP server on localhost there, not over stdio: on a
----stdin pipe its event loop sleeps until Neovim sends the next message, so
----diagnostics, indexing and completion only move while you type.
----GENJA_PHPACTOR_TCP=1 does the same elsewhere (for testing). Otherwise
----lspconfig's default cmd.
----@return (string[]|fun(dispatchers: vim.lsp.rpc.Dispatchers, config: vim.lsp.ClientConfig): vim.lsp.rpc.PublicClient)?
+-- Server ----------------------------------------------------------------------
+
+---Windows: phpactor inside WSL over stdio, with every path in the messages
+---translated. Elsewhere lspconfig's default cmd.
+---@return (fun(dispatchers: vim.lsp.rpc.Dispatchers, config: vim.lsp.ClientConfig): vim.lsp.rpc.PublicClient)?
 local function phpactor_cmd()
-	if not is_win and vim.env.GENJA_PHPACTOR_TCP ~= '1' then
+	if not is_win then
 		return nil
 	end
-	-- Only if Mason has installed phpactor; a reinstall wipes the folder, so it comes back.
-	if is_win and vim.uv.fs_stat(phpactor_phar) then
-		download(process_wrapper_url, process_wrapper, 'ProcessWrapper64.exe')
-	end
-	local plugin_root = vim.fs.dirname(vim.fs.dirname(vim.fs.dirname(vim.fs.dirname(
-		debug.getinfo(1, 'S').source:sub(2)))))
-	local server = {
-		'php',
-		vim.fs.joinpath(plugin_root, 'scripts', 'phpactor-nocheck.php'),
-		phpactor_phar,
-		'language-server',
-		-- Port 0: the system picks a free one; phpactor logs it with -vv.
-		'--address=127.0.0.1:0',
-		'-vv',
-	}
-
 	return function(dispatchers, config)
-		local port, stderr = nil, ''
-		local proc = vim.system(server, {
-			cwd = config.root_dir,
-			stderr = function(_, data)
-				if not data then
-					return
-				end
-				if not port then
-					stderr = stderr .. data
-					port = tonumber(stderr:match('Listening on 127%.0%.0%.1:(%d+)'))
-				end
-				vim.schedule(function()
-					vim.lsp.log.error('phpactor', 'stderr', data)
-				end)
-			end,
-		})
-		vim.wait(30000, function()
-			return port ~= nil or proc:is_closing()
-		end, 20)
-		if not port then
-			proc:kill('sigterm')
-			error('phpactor did not start its TCP server: ' .. stderr)
+		local found, err = probe()
+		if not found then
+			error('phpactor: cannot run WSL: ' .. err)
+		end
+		local phpactor = found.bins.phpactor
+		if not phpactor or not found.bins.php or not found.bins.stubs then
+			if opts.install then
+				install()
+				error('phpactor is not (fully) in WSL yet; installing it, it starts when done (:PhpactorWslInstall)')
+			end
+			error('phpactor, php or its stubs are not installed in WSL; run :PhpactorWslInstall')
 		end
 
-		local rpc = vim.lsp.rpc.connect('127.0.0.1', port)(dispatchers)
-		-- The server lives as long as the client.
-		local terminate = rpc.terminate
-		rpc.terminate = function()
-			terminate()
-			proc:kill('sigterm')
+		local args = { '-e', phpactor, 'language-server' }
+		if config.root_dir then
+			table.insert(args, 1, to_wsl(config.root_dir))
+			table.insert(args, 1, '--cd')
 		end
-		vim.api.nvim_create_autocmd('VimLeavePre', {
-			once = true,
-			callback = function()
-				proc:kill('sigterm')
+		local rpc = vim.lsp.rpc.start(wsl(args), {
+			notification = function(method, params)
+				return dispatchers.notification(method, map(params, to_win))
 			end,
-		})
-		return rpc
+			server_request = function(method, params)
+				local result, rerr = dispatchers.server_request(method, map(params, to_win))
+				return map(result, to_wsl), rerr
+			end,
+			on_exit = dispatchers.on_exit,
+			on_error = dispatchers.on_error,
+		}, { env = wsl_env })
+
+		return {
+			request = function(method, params, callback, notify_reply_callback)
+				return rpc.request(method, map(params, to_wsl), function(rerr, result)
+					callback(rerr, map(result, to_win))
+				end, notify_reply_callback)
+			end,
+			notify = function(method, params)
+				return rpc.notify(method, map(params, to_wsl))
+			end,
+			is_closing = rpc.is_closing,
+			terminate = rpc.terminate,
+		}
 	end
 end
 
@@ -267,19 +466,18 @@ return {
 			-- .phproject: an empty file that marks a project root by hand; it wins over the rest.
 			root_markers = { '.phproject', 'composer.json', '.phpactor.json', '.phpactor.yml', 'wp-config.php', 'artisan', '.git' },
 			cmd = phpactor_cmd(),
-			init_options = vim.tbl_extend('force', is_win and {
-				-- Phpactor runs these in a second `phpactor` process, which the wrapper
-				-- above can't provide; run them in the server itself.
-				['language_server.diagnostic_outsource'] = false,
-				['language_server.code_action_outsource'] = false,
-			} or {}, {
+			init_options = {
 				-- Hints are sent; show them with vim.lsp.inlay_hint.enable() (<leader>tth here).
 				['language_server_worse_reflection.inlay_hints.enable'] = true,
 				['language_server_worse_reflection.inlay_hints.types'] = true,
 				-- Also offer `use function` / `use const` imports for global names.
 				['language_server_code_transform.import_globals'] = true,
-			}),
+			},
 			before_init = function(params, config)
+				if is_win then
+					-- A Windows PID means nothing inside WSL; phpactor must not watch it.
+					params.processId = vim.NIL
+				end
 				if config.root_dir then
 					params.initializationOptions = vim.tbl_extend(
 						'force',
@@ -289,6 +487,8 @@ return {
 				end
 			end,
 			on_attach = function(client, buf)
+				-- :PhpDocParams, @param tags for every function and method in the file.
+				require('genja.php_docparams').attach(buf)
 				if client.root_dir and is_laravel(client.root_dir) then
 					pint_on_save(client.root_dir, buf)
 				end
@@ -299,5 +499,7 @@ return {
 			workspace_required = true,
 		},
 	},
-	tools = { 'phpstan', 'php-cs-fixer', 'phpcs', 'pint', 'php-debug-adapter' },
+	-- Windows: these are Mason's Windows builds, which phpactor inside WSL can't
+	-- run; they are only installed for the other systems.
+	tools = is_win and { 'php-debug-adapter' } or { 'phpstan', 'php-cs-fixer', 'phpcs', 'pint', 'php-debug-adapter' },
 }

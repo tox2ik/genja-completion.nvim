@@ -15,6 +15,7 @@
 ---@field enabled? table<string, boolean>
 ---@field mason? table
 ---@field diagnostics? vim.diagnostic.Opts|false
+---@field phpactor_wsl? { distro?: string, install?: boolean }
 
 ---@type genja.lsp.Opts
 return {
@@ -36,6 +37,12 @@ return {
 		-- scrapt itropretor langs
 		python = false,
 		php = false,
+	},
+
+	-- Windows: phpactor runs inside WSL (lua/genja/lang/php.lua, doc/phpactor-wsl.md).
+	phpactor_wsl = {
+		distro = nil, -- wsl.exe -d <distro>; nil: the default distro (`wsl -l -v`)
+		install = true, -- install PHP and phpactor in the distro when missing
 	},
 
 	-- Passed to require('mason').setup().
