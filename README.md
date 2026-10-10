@@ -123,6 +123,16 @@ renamed to `php.lua`; see the top of the file.
   Overlaps with phpactor's code actions; not tested together. Needs Neovim 0.12
   and ripgrep.
 
+### Function call snippets
+
+Picking a function from the menu inserts `name(arg1, arg2)` with the cursor on
+the first argument; `<Tab>` jumps to the next. Set per server:
+
+| server | setting (in `lang/<name>.lua`)          | values |
+| ------ | --------------------------------------- | ------ |
+| lua_ls | `Lua.completion.callSnippet`            | `'Replace'` (set here): the snippet only<br>`'Both'`: the plain name and the snippet as two menu entries<br>`'Disable'`: name only (lua_ls default) |
+| gopls  | `gopls.usePlaceholders`                 | `true` (set here): with argument placeholders<br>`false`: `name()` only, cursor inside the parentheses |
+
 ### Add or change a language
 
 Language files are looked up on the runtimepath, so they do not have to live in
@@ -171,6 +181,23 @@ for `lsp.diagnostics`:
 	virtual_lines = { current_line = true },
 }
 ```
+
+## LSP check
+
+`:CheckHealthLspSimple` opens a float that confirms a language server is
+attached to the current buffer. It shows PASS or FAIL, the file and its
+detected language, and each server with its languages and workspace folders.
+`q` or `<Esc>` closes it. The command is always defined; there is no option to
+turn it off.
+
+The same action is available as `<Plug>CheckHealthLspSimple`. No key is bound
+by default; bind one yourself, for example:
+
+```lua
+vim.keymap.set('n', '<leader>ch', '<Plug>CheckHealthLspSimple', { desc = 'LSP check' })
+```
+
+The code is in `lua/genja/lsp/check.lua`.
 
 ## Alternatives to nvim-cmp
 

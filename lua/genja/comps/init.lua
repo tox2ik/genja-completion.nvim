@@ -6,6 +6,9 @@
 --   })
 --
 -- Both keys are optional. Set one to false to skip that half.
+--
+-- :CheckHealthLspSimple and <Plug>CheckHealthLspSimple are always defined;
+-- see lua/genja/lsp/check.lua.
 
 local M = {}
 
@@ -20,6 +23,8 @@ function M.setup(opts)
 		vim.notify('genja needs Neovim 0.11 or newer', vim.log.levels.ERROR)
 		return
 	end
+	-- Always on, also with lsp = false.
+	require('genja.lsp.check').setup()
 	-- Completion first, so its sources are registered before servers attach.
 	if opts.completion ~= false then
 		require('genja.completion').setup(opts.completion)

@@ -77,6 +77,39 @@ local function install_tools(tools)
 	end))
 end
 
+---Servers and tools of every enabled language.
+---@param config genja.lsp.Opts
+---@param apply? boolean call vim.lsp.config() for each server
+---@return string[] servers lspconfig names
+---@return string[] tools mason package names
+local function collect(config, apply)
+	-- vim.spairs iterates in sorted order, so when two languages configure the
+	-- same server their overrides always merge in the same order.
+	local servers, tools = {}, {} -- sets
+	for name, on in vim.spairs(config.enabled) do
+		local lang = on and load_lang(name) or {}
+		for server, overrides in pairs(lang.servers or {}) do
+			if apply then
+				vim.lsp.config(server, overrides)
+			end
+			servers[server] = true
+		end
+		for _, tool in ipairs(lang.tools or {}) do
+			tools[tool] = true
+		end
+	end
+	return sorted(servers), sorted(tools)
+end
+
+---Everything the enabled languages want from Mason: servers (lspconfig names)
+---then tools (package names). For mason-tool-installer, which runs headless
+---(lua/lazyp/comps/mason-tool-installer.lua).
+---@return string[]
+function M.packages()
+	local servers, tools = collect(M.get())
+	return vim.list_extend(servers, tools)
+end
+
 ---@param opts? genja.lsp.Opts
 function M.setup(opts)
 	M.config = load_config(opts) -- inspect with :lua =require('genja.lsp').config
@@ -91,20 +124,7 @@ function M.setup(opts)
 		vim.lsp.config('*', { capabilities = cmp_lsp.default_capabilities() })
 	end
 
-	-- vim.spairs iterates in sorted order, so when two languages configure the
-	-- same server their overrides always merge in the same order.
-	local servers, tools = {}, {} -- sets
-	for name, on in vim.spairs(M.config.enabled) do
-		local lang = on and load_lang(name) or {}
-		for server, overrides in pairs(lang.servers or {}) do
-			vim.lsp.config(server, overrides)
-			servers[server] = true
-		end
-		for _, tool in ipairs(lang.tools or {}) do
-			tools[tool] = true
-		end
-	end
-	servers, tools = sorted(servers), sorted(tools)
+	local servers, tools = collect(M.config, true)
 
 	require('mason').setup(M.config.mason)
 	require('mason-lspconfig').setup({
