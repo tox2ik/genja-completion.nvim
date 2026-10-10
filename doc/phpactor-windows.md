@@ -68,6 +68,28 @@ stopped with the client and on `VimLeavePre`. Its stderr goes to the LSP log.
 Also off on Windows: `language_server.diagnostic_outsource` and
 `code_action_outsource`, which would start a second phpactor process.
 
+## 5. Provider ... PhpCsFixerDiagnosticsProvider (php-cs-fixer) failed: Syntax error
+
+php-cs-fixer lints a file with the running PHP (8.x) before fixing it, and gives
+up on code PHP 8 rejects (`$str{0}`, `create_function`, ...). Check a file with
+`php -l <file>`.
+
+**Fix:** `php.lua` turns php-cs-fixer on only when the project root has
+`.php-cs-fixer.php`, `.php-cs-fixer.dist.php`, `.php_cs` or `.php_cs.dist`.
+
+To turn it off in a project that has a config, add `.phpactor.json` to the
+project root:
+
+```json
+{
+    "language_server_php_cs_fixer.enabled": false
+}
+```
+
+Restart phpactor (`:lsp restart` or reopen Neovim). Settings sent from `php.lua`
+override `.phpactor.json`, so this only works where `php.lua` doesn't enable the
+fixer itself.
+
 ## Files
 
 - `lua/genja/lang/php.lua`: `phpactor_cmd()` (wrapper, TCP, ProcessWrapper download).
