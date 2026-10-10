@@ -1,0 +1,15 @@
+# Copy to the project root. With this file present, genja's php.lua turns on
+# phpactor's phpstan diagnostics.
+# Needs phpstan in vendor/bin (composer require --dev phpstan/phpstan)
+# or on PATH (Mason: :MasonInstall phpstan).
+# Level 0 is the loosest (0-10); raise it once the project is clean.
+
+parameters:
+    level: 0
+    paths:
+        - .
+    excludePaths:
+        - vendor
+        - var
+        - cache
+        - node_modules

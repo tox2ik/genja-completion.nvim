@@ -275,6 +275,8 @@ return {
 				client:notify('workspace/didChangeConfiguration', { settings = client.settings })
 			end,
 			on_attach = function(client, buf)
+				-- :PhpDocParams, @param tags for every function and method in the file.
+				require('genja.php_docparams').attach(buf)
 				if client.root_dir then
 					on_save_tools(client.root_dir, buf)
 				end
