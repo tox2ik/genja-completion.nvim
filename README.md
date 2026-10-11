@@ -71,7 +71,7 @@ require('genja').setup({
 		diagnostics = { virtual_text = true, severity_sort = true }, -- for vim.diagnostic.config()
 	},
 	completion = {
-		features = { 'keymaps', 'snippets', 'lsp', 'path', 'buffer', 'lazydev', 'cmdline', 'appearance' },
+		features = { 'keymaps', 'snippets', 'lsp', 'path', 'gitignore', 'dictionary', 'buffer', 'lazydev', 'cmdline', 'appearance' },
 	},
 })
 ```
@@ -100,8 +100,10 @@ require('genja.lsp').enabled('php') -- true when PHP is turned on
 | ------------ | ------------------------ | ----------------- |
 | `bash`       | bashls                   | shellcheck, shfmt |
 | `c_cpp`      | clangd                   |                   |
+| `gitconfig`  | none\*\*\*                 |                   |
 | `go`         | gopls                    |                   |
 | `lua`        | lua_ls                   |                   |
+| `make`       | autotools_ls\*\*         | make parse errors\*\*\* |
 | `php`        | phpactor\*, laravel_ls   | phpstan, php-cs-fixer, phpcs, pint, php-debug-adapter |
 | `powershell` | powershell_es            |                   |
 | `python`     | pyrefly, ruff            |                   |
@@ -115,6 +117,28 @@ On Windows phpactor needs several workarounds, all automatic; see
 `lua/genja/lang/php.lua.intelephense` is the same setup on intelephense instead
 (no Windows workarounds; licence optional). The loader skips it until it is
 renamed to `php.lua`; see the top of the file.
+
+\*\* Makefile, Automake and configure.ac; needs Python on PATH (pip package).
+
+\*\*\* Diagnostics from the tool itself, checked on open and on save:
+`ftplugin/make.lua` runs `make -n` (GNU make on PATH), `ftplugin/gitconfig.lua`
+runs `git config --list` (git on PATH). Each runs only while its language is
+enabled.
+
+### Filetypes
+
+`lua/genja/ft/<filetype>.lua` returns a spec for `vim.filetype.add()`; all of
+them are added by `setup()`, also with `lsp = false`. Shipped: `gitconfig`
+(`*.gitconfig`, `.gitconfig.local`, `.gitconfig-work`), `gitignore`
+(`.gitignore_global`, `.ignore`, `.rgignore`, `.fdignore`) and `gitattributes`
+(`.gitattributes_global`). As with languages, a file with the same name in your
+Neovim config directory replaces the shipped one, and a new name adds a
+filetype:
+
+```lua
+-- ~/.config/nvim/lua/genja/ft/yaml.lua
+return { extension = { yml = 'yaml.ansible' } }
+```
 
 ### PHP: worth trying later
 
@@ -181,6 +205,31 @@ for `lsp.diagnostics`:
 	virtual_lines = { current_line = true },
 }
 ```
+
+## Dictionary words
+
+In `text` (.txt) and `markdown` buffers the `dictionary` feature offers
+English words after three letters, next to words from the buffer. A
+capitalised prefix gets capitalised words. Words come from, in this order:
+
+1. the buffer's `'dictionary'` option, when it is set
+2. `stdpath('data')/dict/en.txt`, once downloaded (see below)
+3. `dict/en.txt` on the runtimepath; the plugin ships one, and one in your
+   Neovim config directory replaces it
+
+plus the words you added with `zg` (the files in `'spellfile'`, or
+`spell/*.add`). New `zg` words show up without a restart.
+
+The shipped list is `popular.txt` from
+[dolph/dictionary](https://github.com/dolph/dictionary): about 25k common
+English words, built from the public-domain ENABLE list and Wiktionary word
+frequencies.
+
+`:DictionaryUpdatePopular` downloads the current `popular.txt` with curl to
+`stdpath('data')/dict/en.txt`. Nothing is downloaded otherwise.
+
+`:CmpStatus` (from nvim-cmp) lists the sources active in the current buffer;
+in a text or markdown file `dictionary` should be among them.
 
 ## LSP check
 

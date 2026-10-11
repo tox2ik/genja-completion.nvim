@@ -28,6 +28,8 @@ return {
 		bash = true,
 		lua = true,
 		vim = true,
+		make = false,
+		gitconfig = true, -- no server: git's own parse errors (ftplugin/gitconfig.lua)
 
 		-- langs
 		typescript = false,

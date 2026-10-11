@@ -8,7 +8,7 @@
 -- Both keys are optional. Set one to false to skip that half.
 --
 -- :CheckHealthLspSimple and <Plug>CheckHealthLspSimple are always defined;
--- see lua/genja/lsp/check.lua.
+-- see lua/genja/lsp/check.lua. Filetypes in lua/genja/ft/ are always added.
 
 local M = {}
 
@@ -24,6 +24,7 @@ function M.setup(opts)
 		return
 	end
 	-- Always on, also with lsp = false.
+	require('genja.ft').setup() -- filetype detection, lua/genja/ft/
 	require('genja.lsp.check').setup()
 	-- Completion first, so its sources are registered before servers attach.
 	if opts.completion ~= false then

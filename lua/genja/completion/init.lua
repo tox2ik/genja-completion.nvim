@@ -21,6 +21,8 @@ M.features = {
 	'snippets', -- snippet expansion
 	'lsp', -- language servers
 	'path', -- file names
+	'gitignore', -- file names in .gitignore / .gitattributes
+	'dictionary', -- English words in text and markdown
 	'buffer', -- words in the buffer
 	'lazydev', -- require('...') module names in Lua
 	'cmdline', -- : commands, :help topics, / search
