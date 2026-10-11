@@ -5,6 +5,7 @@
 -- lazy.nvim's LazyPluginSpec / LazySpec in plugin spec files.
 local lazy_lib = vim.fs.normalize(vim.fs.joinpath(vim.fn.stdpath('data'), 'lazy', 'lazy.nvim', 'lua'))
 
+---@type genja.Lang
 return {
 	servers = {
 		lua_ls = {

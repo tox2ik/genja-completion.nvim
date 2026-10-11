@@ -458,6 +458,7 @@ local function phpactor_cmd()
 	end
 end
 
+---@type genja.Lang
 return {
 	servers = {
 		phpactor = {

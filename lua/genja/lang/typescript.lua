@@ -8,6 +8,7 @@
 -- :echo executable('tsc')
 -- :!tsc --version
 
+---@type genja.Lang
 return {
 	servers = {
 		tsc = {},

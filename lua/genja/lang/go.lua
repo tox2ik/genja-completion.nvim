@@ -22,6 +22,7 @@ local function go_lib_dirs()
 	return vim.tbl_map(norm, dirs)
 end
 
+---@type genja.Lang
 return {
 	servers = {
 		gopls = {
