@@ -11,11 +11,30 @@
 --		return { enabled = { php = true, python = false } }
 --		return { enabled = { php = true, powershell = false } }
 
+---Keys are file names in lua/genja/lang/; a language you add there works too.
+---@class genja.lsp.Enabled: { [string]: boolean }
+---@field bash? boolean
+---@field c_cpp? boolean
+---@field gitconfig? boolean
+---@field go? boolean
+---@field lua? boolean
+---@field make? boolean
+---@field php? boolean
+---@field powershell? boolean
+---@field python? boolean
+---@field sshconfig? boolean
+---@field typescript? boolean
+---@field vim? boolean
+
+---@class genja.lsp.PhpactorWsl
+---@field distro? string wsl.exe -d <distro>; nil: the default distro
+---@field install? boolean install PHP and phpactor in the distro when missing
+
 ---@class genja.lsp.Opts
----@field enabled? table<string, boolean>
----@field mason? table
----@field diagnostics? vim.diagnostic.Opts|false
----@field phpactor_wsl? { distro?: string, install?: boolean }
+---@field enabled? genja.lsp.Enabled languages to turn on
+---@field mason? MasonSettings passed to require('mason').setup()
+---@field diagnostics? vim.diagnostic.Opts|false passed to vim.diagnostic.config()
+---@field phpactor_wsl? genja.lsp.PhpactorWsl
 
 ---@type genja.lsp.Opts
 return {
