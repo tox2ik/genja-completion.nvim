@@ -71,7 +71,7 @@ require('genja').setup({
 		diagnostics = { virtual_text = true, severity_sort = true }, -- for vim.diagnostic.config()
 	},
 	completion = {
-		features = { 'keymaps', 'snippets', 'lsp', 'path', 'gitignore', 'dictionary', 'buffer', 'lazydev', 'cmdline', 'appearance' },
+		features = { 'keymaps', 'snippets', 'lsp', 'path', 'gitignore', 'sshconfig', 'dictionary', 'buffer', 'lazydev', 'cmdline', 'appearance' },
 	},
 })
 ```
@@ -107,6 +107,7 @@ require('genja.lsp').enabled('php') -- true when PHP is turned on
 | `php`        | phpactor\*, laravel_ls   | phpstan, php-cs-fixer, phpcs, pint, php-debug-adapter |
 | `powershell` | powershell_es            |                   |
 | `python`     | pyrefly, ruff            |                   |
+| `sshconfig`  | none\*\*\*                 | ssh parse errors\*\*\* |
 | `typescript` | tsc, eslint              |                   |
 | `vim`        | vimls                    |                   |
 
@@ -122,8 +123,9 @@ renamed to `php.lua`; see the top of the file.
 
 \*\*\* Diagnostics from the tool itself, checked on open and on save:
 `ftplugin/make.lua` runs `make -n` (GNU make on PATH), `ftplugin/gitconfig.lua`
-runs `git config --list` (git on PATH). Each runs only while its language is
-enabled.
+runs `git config --list` (git on PATH), `ftplugin/sshconfig.lua` runs
+`ssh -G -F <file>` (OpenSSH on PATH; `Match exec` commands in the file still
+run). Each runs only while its language is enabled.
 
 ### Filetypes
 
@@ -131,7 +133,8 @@ enabled.
 them are added by `setup()`, also with `lsp = false`. Shipped: `gitconfig`
 (`*.gitconfig`, `.gitconfig.local`, `.gitconfig-work`), `gitignore`
 (`.gitignore_global`, `.ignore`, `.rgignore`, `.fdignore`) and `gitattributes`
-(`.gitattributes_global`). As with languages, a file with the same name in your
+(`.gitattributes_global`), `sshconfig` (`~/.ssh/config.d/*`, `~/.ssh/config.local`,
+`ssh_config.d/*`) and `sshdconfig` (`sshd_config.d/*`). As with languages, a file with the same name in your
 Neovim config directory replaces the shipped one, and a new name adds a
 filetype:
 
@@ -205,6 +208,20 @@ for `lsp.diagnostics`:
 	virtual_lines = { current_line = true },
 }
 ```
+
+## SSH config
+
+In `sshconfig` (`~/.ssh/config`, `ssh_config`, `config.d/*`) and `sshdconfig`
+(`sshd_config`) buffers the `sshconfig` feature offers the option names at the
+start of a line and, after an option, its fixed values (`yes`/`no`, `LogLevel`,
+`StrictHostKeyChecking`, `Match` criteria, ...). `Ciphers`, `MACs`,
+`KexAlgorithms` and the key algorithm lists get what `ssh -Q` reports on this
+machine. Paths (`IdentityFile ~/...`) come from the path source.
+
+There is no language server for ssh config. With `lsp.enabled.sshconfig`
+(default on), `ssh -G` checks the client config on open and on save; sshd_config
+is not checked (`sshd -t` needs the host keys). Treesitter: `ssh_config` parser
+for `sshconfig`; `sshdconfig` keeps vim's syntax file.
 
 ## Dictionary words
 

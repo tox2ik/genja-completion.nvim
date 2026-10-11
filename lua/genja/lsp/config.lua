@@ -30,6 +30,7 @@ return {
 		vim = true,
 		make = false,
 		gitconfig = true, -- no server: git's own parse errors (ftplugin/gitconfig.lua)
+		sshconfig = true, -- no server: ssh's own parse errors (ftplugin/sshconfig.lua)
 
 		-- langs
 		typescript = false,
