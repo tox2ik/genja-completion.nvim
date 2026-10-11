@@ -1,4 +1,5 @@
 -- Command-line completion.
+---@type genja.completion.Feature
 return function(cmp)
 	-- `:` Ex commands and their arguments. This also covers :help topics,
 	-- because cmp-cmdline asks Neovim for the same candidates <Tab> would give.

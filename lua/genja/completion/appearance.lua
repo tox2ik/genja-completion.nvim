@@ -1,4 +1,5 @@
 -- Menu and documentation windows, and the kind icons.
+---@type genja.completion.Feature
 return function(_, opts)
 	opts.window = {
 		completion = {

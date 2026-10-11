@@ -58,6 +58,7 @@ function source:complete(params, callback)
 	callback({ items = items, isIncomplete = true })
 end
 
+---@type genja.completion.Feature
 return function(cmp, _)
 	cmp.register_source('gitignore', source.new())
 	cmp.setup.filetype({ 'gitignore', 'gitattributes' }, {

@@ -172,6 +172,7 @@ local function updatePopular()
 	end)
 end
 
+---@type genja.completion.Feature
 return function(cmp, _)
 	cmp.register_source('dictionary', source.new())
 	vim.api.nvim_create_user_command('DictionaryUpdatePopular', updatePopular, { desc = 'Download dict/en.txt' })

@@ -1,4 +1,5 @@
 -- Insert-mode keys for the completion menu.
+---@type genja.completion.Feature
 return function(cmp, opts)
 	local function has_text_before()
 		local col = vim.api.nvim_win_get_cursor(0)[2]

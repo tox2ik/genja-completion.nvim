@@ -11,7 +11,8 @@
 
 local M = {}
 
----@alias genja.completion.Feature fun(cmp: table, opts: table)
+---Adds its part to `opts`, the table passed to cmp.setup().
+---@alias genja.completion.Feature fun(cmp: table, opts: cmp.ConfigSchema)
 
 ---@class genja.completion.Opts
 ---@field features? (string|genja.completion.Feature)[] replaces M.features

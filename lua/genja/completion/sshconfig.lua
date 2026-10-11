@@ -242,6 +242,7 @@ function source:complete(params, callback)
 	callback({ items = items })
 end
 
+---@type genja.completion.Feature
 return function(cmp, _)
 	cmp.register_source('sshconfig', source.new())
 	cmp.setup.filetype({ 'sshconfig', 'sshdconfig' }, {
