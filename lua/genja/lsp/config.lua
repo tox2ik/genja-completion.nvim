@@ -17,6 +17,7 @@
 ---@field c_cpp? boolean
 ---@field gitconfig? boolean
 ---@field go? boolean
+---@field json? boolean
 ---@field lua? boolean
 ---@field make? boolean
 ---@field php? boolean
@@ -55,6 +56,7 @@ return {
 		typescript = false,
 		c_cpp = false,
 		go = false,
+		json = true,
 
 		-- scrapt itropretor langs
 		python = false,

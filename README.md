@@ -62,6 +62,7 @@ require('genja').setup({
 			lua = true,
 			c_cpp = false,
 			go = false,
+			json = true,
 			php = false,
 			powershell = false,
 			python = false,
@@ -102,6 +103,7 @@ require('genja.lsp').enabled('php') -- true when PHP is turned on
 | `c_cpp`      | clangd                   |                   |
 | `gitconfig`  | none\*\*\*                 |                   |
 | `go`         | gopls                    |                   |
+| `json`       | jsonls                   |                   |
 | `lua`        | lua_ls                   |                   |
 | `make`       | autotools_ls\*\*         | make parse errors\*\*\* |
 | `php`        | phpactor\*, laravel_ls   | phpstan, php-cs-fixer, phpcs, pint, php-debug-adapter |
