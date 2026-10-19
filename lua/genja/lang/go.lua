@@ -59,7 +59,7 @@ local function warn_rootless(bufnr)
 	warned[dir] = true
 	vim.notify(
 		('%s: no go.mod or go.work above %s; gopls runs in single-file mode and code actions'
-			.. ' fail with "missing metadata". Fix: cd %s && go mod init %s')
+			.. ' fail with "missing metadata". Fix: <F2> (adhoc: go mod init), or cd %s && go mod init %s')
 			:format(SRC, dir, dir, vim.fs.basename(dir)),
 		vim.log.levels.WARN
 	)
