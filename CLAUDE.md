@@ -89,6 +89,7 @@ code or history: confirm or delete. `Hint:` is a working note for Claude.
 ### Lua, Go, Vimscript, JSON
 
 - lua_ls: `root_dir` ignores the home folder (single-file mode instead), workspace preload limits, `callSnippet = 'Replace'`. README documents `'Both'` and `'Disable'`.
+- lua_ls: on a slow PC it flags `vim`, `require` etc. as undefined globals until the workspace is loaded. `on_attach` hides the buffer's diagnostics until lua_ls's first `LspProgress` 'end', or 10s at most.
 - gopls: root is `go.work`, then `go.mod`, then `.git`; home folder ignored. Sample workspace in `examples/go/`.
 - gopls: a `.go` file with no `go.mod`/`go.work` above it (single-file mode, code actions fail with "missing metadata") warns once per folder with the `go mod init` fix.
 - gopls: on save, `source.organizeImports` (sync request, resolved when the edit is left out), then format. Opt out with `b:`/`g:go_format_on_save = v:false`.

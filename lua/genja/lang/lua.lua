@@ -3,7 +3,60 @@
 -- library of every plugin a file require()s, and keeps the entries listed here.
 -- Types used without a require need their library listed in workspace.library:
 -- lazy.nvim's LazyPluginSpec / LazySpec in plugin spec files.
+--
+-- Until lua_ls has loaded the workspace it flags vim, require and other
+-- well-known globals as undefined (slow PCs). A buffer's diagnostics stay hidden
+-- until lua_ls reports its first progress 'end', or SHOW_AFTER ms at most.
 local lazy_lib = vim.fs.normalize(vim.fs.joinpath(vim.fn.stdpath('data'), 'lazy', 'lazy.nvim', 'lua'))
+
+local SHOW_AFTER = 10000 -- ms; fallback when no progress 'end' arrives
+
+local ready = {} ---@type table<integer, true> lua_ls clients done loading
+local hidden = {} ---@type table<integer, integer[]> buffers hidden per client
+
+---Show the diagnostics hidden while lua_ls was loading.
+---@param client_id integer
+local function show_diagnostics(client_id)
+	if ready[client_id] then
+		return
+	end
+	ready[client_id] = true
+	for _, buf in ipairs(hidden[client_id] or {}) do
+		if vim.api.nvim_buf_is_valid(buf) then
+			vim.diagnostic.enable(true, { bufnr = buf })
+		end
+	end
+	hidden[client_id] = nil
+	pcall(vim.api.nvim_del_augroup_by_name, 'genja.lua_ls.ready.' .. client_id)
+end
+
+---Hide a buffer's diagnostics until lua_ls is ready.
+---@param client vim.lsp.Client
+---@param bufnr integer
+local function hide_until_ready(client, bufnr)
+	if ready[client.id] then
+		return
+	end
+	vim.diagnostic.enable(false, { bufnr = bufnr })
+	if hidden[client.id] then
+		table.insert(hidden[client.id], bufnr)
+		return -- the client's autocmd and timer are already set
+	end
+	hidden[client.id] = { bufnr }
+	vim.api.nvim_create_autocmd('LspProgress', {
+		group = vim.api.nvim_create_augroup('genja.lua_ls.ready.' .. client.id, { clear = true }),
+		pattern = 'end',
+		desc = 'lua_ls: show diagnostics once the workspace is loaded',
+		callback = function(args)
+			if args.data.client_id == client.id then
+				show_diagnostics(client.id)
+			end
+		end,
+	})
+	vim.defer_fn(function()
+		show_diagnostics(client.id)
+	end, SHOW_AFTER)
+end
 
 ---@type genja.Lang
 return {
@@ -22,6 +75,9 @@ return {
 					root = nil
 				end
 				on_dir(root)
+			end,
+			on_attach = function(client, bufnr)
+				hide_until_ready(client, bufnr)
 			end,
 			settings = {
 				Lua = {
