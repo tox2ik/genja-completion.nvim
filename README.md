@@ -102,7 +102,7 @@ require('genja.lsp').enabled('php') -- true when PHP is turned on
 | `bash`       | bashls                   | shellcheck, shfmt |
 | `c_cpp`      | clangd                   |                   |
 | `gitconfig`  | none\*\*\*                 |                   |
-| `go`         | gopls                    |                   |
+| `go`         | gopls (see [Go](#go))    |                   |
 | `json`       | jsonls                   |                   |
 | `lua`        | lua_ls                   |                   |
 | `make`       | autotools_ls\*\*         | make parse errors\*\*\* |
@@ -224,6 +224,56 @@ There is no language server for ssh config. With `lsp.enabled.sshconfig`
 (default on), `ssh -G` checks the client config on open and on save; sshd_config
 is not checked (`sshd -t` needs the host keys). Treesitter: `ssh_config` parser
 for `sshconfig`; `sshdconfig` keeps vim's syntax file.
+
+## Go
+
+Needs Go on PATH: mason builds gopls with `go install`. Everything below is in
+`lua/genja/lang/go.lua`, which sets only what differs from the gopls defaults
+(checked against `gopls api-json`, gopls v0.23).
+
+- **Root**: `go.work`, then `go.mod`, then `.git`; never the home folder. Files
+  in the module cache or GOROOT (reached through go-to-definition) reuse the
+  running gopls. A two-module sample workspace is in `examples/go/`.
+- **No go.mod**: a `.go` file with no `go.mod` or `go.work` above it puts gopls
+  in single-file mode, where code actions fail with "missing metadata". A
+  warning names the folder and the fix (`go mod init <name>`), once per folder.
+- **On save**: organize imports, then format. Off for one buffer with
+  `vim.b.go_format_on_save = false`, everywhere with `vim.g.go_format_on_save = false`.
+- **Import groups**: gopls' `local` is set to the workspace's module paths, read
+  from `go.work`/`go.mod`, so imports of your own modules get a group of their
+  own. A value you set yourself wins:
+  `vim.lsp.config('gopls', { settings = { gopls = { ['local'] = 'example.com/x' } } })`.
+- **Code lenses**: lines gopls shows above code, such as "run test" above a
+  `TestXxx` function, and "tidy" or "upgrade dependency" in `go.mod`. On in
+  every gopls buffer; run the one on the cursor line with `vim.lsp.codelens.run()`.
+- **Checks**: staticcheck is on, and many of its findings come with quickfixes.
+  The `shadow` analyzer stays off (noisy with `err :=`).
+- **Inlay hints**: every gopls hint is turned on, shown only while inlay hints
+  are (`vim.lsp.inlay_hint.enable()`).
+
+### Code actions by kind
+
+`vim.lsp.buf.code_action()` lists everything. Filtering by kind gives shorter
+menus, and in visual mode the selection is sent as the range:
+
+| kind               | where            | gopls offers |
+| ------------------ | ---------------- | ------------ |
+| `quickfix`         | cursor           | fixes for the diagnostic under the cursor |
+| `refactor.extract` | visual selection | statements → function or method; one expression → variable or constant |
+| `refactor.rewrite` | cursor           | fill struct, fill switch, invert if, split/join lines, remove unused parameter |
+| `refactor.inline`  | cursor on a call | inline the call |
+| `source`           | anywhere         | organize imports, browse docs, add a test |
+
+The plugin maps no keys. For example:
+
+```lua
+vim.keymap.set({ 'n', 'v' }, '<leader>ce', function()
+	vim.lsp.buf.code_action({ context = { only = { 'refactor.extract' } } })
+end, { desc = 'Code action: extract' })
+```
+
+A kind also matches its subkinds: `refactor.extract` includes
+`refactor.extract.function`.
 
 ## Dictionary words
 

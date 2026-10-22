@@ -13,6 +13,14 @@
 -- On save: source.organizeImports, then format. Off for one buffer with
 -- `:let b:go_format_on_save = v:false`, everywhere with `g:go_format_on_save`.
 --
+-- Code lenses: clickable-looking lines gopls puts above code ("run test" above
+-- a TestXxx, "tidy"/"upgrade" in go.mod). Run the one on the cursor line with
+-- <leader>cl (map-lsp.lua).
+--
+-- `local` (goimports -local) is set to the workspace's module paths, read from
+-- go.work/go.mod at the root, so organize imports groups them last. To pin it:
+-- vim.lsp.config('gopls', { settings = { gopls = { ['local'] = 'example.com/x' } } })
+--
 -- Settings checked against gopls v0.23 (`gopls api-json`). Left out because
 -- they are defaults now: analyses unusedparams, unusedwrite, unusedvariable,
 -- nilness; codelenses generate, tidy, upgrade_dependency, vendor;
@@ -94,6 +102,92 @@ local function organize_imports(client, bufnr)
 	end
 end
 
+---Module path from a go.mod's `module` line.
+---@param gomod string
+---@return string?
+local function module_path(gomod)
+	local ok, lines = pcall(vim.fn.readfile, gomod)
+	if not ok then
+		return nil
+	end
+	for _, line in ipairs(lines) do
+		local path = line:match('^%s*module%s+"?([^%s"]+)')
+		if path then
+			return path
+		end
+	end
+	return nil
+end
+
+---Folders listed by `use` in a go.work, single-line or block form.
+---@param gowork string
+---@return string[]
+local function work_dirs(gowork)
+	local dirs = {}
+	local in_block = false
+	for _, raw in ipairs(vim.fn.readfile(gowork)) do
+		local line = raw:gsub('//.*', '')
+		local dir = nil
+		if line:match('^%s*use%s*%(') then
+			in_block = true
+		elseif in_block and line:match('^%s*%)') then
+			in_block = false
+		elseif in_block then
+			dir = line:match('^%s*"?([^%s"]+)')
+		else
+			dir = line:match('^%s*use%s+"?([^%s"]+)')
+		end
+		if dir then
+			table.insert(dirs, dir)
+		end
+	end
+	return dirs
+end
+
+---Module paths of the workspace at root: each `use` of go.work, else root's go.mod.
+---@param root string
+---@return string[]
+local function workspace_modules(root)
+	local dirs = { '.' }
+	local gowork = vim.fs.joinpath(root, 'go.work')
+	if vim.uv.fs_stat(gowork) then
+		dirs = work_dirs(gowork)
+	end
+	local paths = {}
+	for _, dir in ipairs(dirs) do
+		local path = module_path(vim.fs.joinpath(root, dir, 'go.mod'))
+		if path then
+			table.insert(paths, path)
+		end
+	end
+	return paths
+end
+
+---Show code lenses and keep them current.
+---@param client vim.lsp.Client
+---@param bufnr integer
+local function enable_codelens(client, bufnr)
+	if not client:supports_method('textDocument/codeLens', bufnr) then
+		return
+	end
+	if vim.lsp.codelens.enable then
+		-- 0.12+: refreshes by itself
+		vim.lsp.codelens.enable(true, { bufnr = bufnr, client_id = client.id })
+		return
+	end
+	-- 0.11: refresh by hand
+	local refresh = function()
+		vim.lsp.codelens.refresh({ bufnr = bufnr }) ---@diagnostic disable-line: deprecated
+	end
+	vim.api.nvim_create_autocmd({ 'BufEnter', 'InsertLeave', 'BufWritePost' }, {
+		group = vim.api.nvim_create_augroup('genja.go.codelens.' .. bufnr, { clear = true }),
+		buffer = bufnr,
+		desc = 'gopls: refresh code lenses',
+		callback = refresh,
+	})
+	refresh()
+end
+
 ---@param bufnr integer
 ---@return boolean
 local function format_on_save(bufnr)
@@ -130,7 +224,21 @@ return {
 				end
 				on_dir(root) -- nil: single-file mode
 			end,
+			-- `local`: imports of the workspace's own modules go in their own group
+			-- (organize imports, completion). Filled in only when not set already.
+			before_init = function(_, config)
+				local gopls = config.settings and config.settings.gopls
+				if not gopls or gopls['local'] or not config.root_dir then
+					return
+				end
+				local modules = workspace_modules(config.root_dir --[[@as string]])
+				if #modules > 0 then
+					-- in place: client.settings is this same table
+					gopls['local'] = table.concat(modules, ',')
+				end
+			end,
 			on_attach = function(client, bufnr)
+				enable_codelens(client, bufnr) -- go.mod gets lenses too (tidy, upgrade)
 				if vim.bo[bufnr].filetype ~= 'go' then
 					return
 				end
