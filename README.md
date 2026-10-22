@@ -72,7 +72,7 @@ require('genja').setup({
 		diagnostics = { virtual_text = true, severity_sort = true }, -- for vim.diagnostic.config()
 	},
 	completion = {
-		features = { 'keymaps', 'snippets', 'lsp', 'path', 'gitignore', 'sshconfig', 'dictionary', 'buffer', 'lazydev', 'cmdline', 'appearance' },
+		features = { 'keymaps', 'snippets', 'lsp', 'path', 'gitignore', 'sshconfig', 'gitcommit', 'dictionary', 'buffer', 'lazydev', 'cmdline', 'appearance' },
 	},
 })
 ```
@@ -224,6 +224,15 @@ There is no language server for ssh config. With `lsp.enabled.sshconfig`
 (default on), `ssh -G` checks the client config on open and on save; sshd_config
 is not checked (`sshd -t` needs the host keys). Treesitter: `ssh_config` parser
 for `sshconfig`; `sshdconfig` keeps vim's syntax file.
+
+## Commit messages
+
+In `gitcommit` buffers the `gitcommit` feature offers Conventional Commits
+parts: the types (`feat`, `fix`, ...) at the start of the summary line, scopes
+used before in `git log` after `type(` (most used first), and footers
+(`BREAKING CHANGE:`, `Refs: #`, `Co-authored-by:`) at the start of body lines.
+Only while genja-commit.nvim's Conventional Commits mode is on for the repo;
+its `conventional_types` option sets the type list.
 
 ## Go
 

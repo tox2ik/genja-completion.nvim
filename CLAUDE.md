@@ -114,6 +114,7 @@ code or history: confirm or delete. `Hint:` is a working note for Claude.
 
 - One nvim-cmp feature per file in `lua/genja/completion/`, listed in the spec's `features`.
 - `gitignore` (file names in gitignore/gitattributes) is on by default.
+- `gitcommit`: Conventional Commits types, scopes from `git log`, footers; only while genja-commit's mode is on (`b:genja_commit_conventional`). Types from `genja-commit.config` when loaded, else the standard list. Lives here next to the other sources, not in genja-commit.
 - `dictionary` is for `text` and `markdown` only. Word source order: buffer `'dictionary'`, then `stdpath('data')/dict/en.txt`, then the shipped `dict/en.txt`; words from the spell `.add` file are always included.
 - The dictionary index is built on the first text/markdown `FileType`: async read, then chunked indexing. Nothing is read at startup.
 - `:DictionaryUpdatePopular` downloads into `stdpath('data')`; `make update-dict` refreshes the shipped list from the URL in `dictionary.lua`.
