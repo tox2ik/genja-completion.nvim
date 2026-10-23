@@ -27,7 +27,7 @@
 -- directoryFilters '-**/node_modules'. Removed from gopls: completeUnimported
 -- (always on), the useany analyzer.
 
-local SRC = 'nvim/plug-wip/genja-completion011.nvim/lua/genja/lang/go.lua'
+local SRC = 'lang/go.lua: '
 local SAVE_TIMEOUT = 1000 -- ms per request; on timeout the file is saved as is
 
 local norm = function(p) return vim.fs.normalize(p):lower() end
@@ -66,9 +66,9 @@ local function warn_rootless(bufnr)
 	end
 	warned[dir] = true
 	vim.notify(
-		('%s: no go.mod or go.work above %s; gopls runs in single-file mode and code actions'
+		(SRC .. 'no go.mod or go.work above %s; gopls runs in single-file mode and code actions'
 			.. ' fail with "missing metadata". Fix: <F2> (adhoc: go mod init), or cd %s && go mod init %s')
-			:format(SRC, dir, dir, vim.fs.basename(dir)),
+			:format(dir, dir, vim.fs.basename(dir)),
 		vim.log.levels.WARN
 	)
 end

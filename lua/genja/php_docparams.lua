@@ -12,6 +12,8 @@
 -- declared one, else `void` when nothing is returned, `\Generator` when it
 -- yields, else `mixed`; constructors get none. Uses the treesitter `php` parser.
 
+local SRC = 'genja/php_docparams.lua: '
+
 local M = {}
 
 local function text(node, buf)
@@ -212,7 +214,7 @@ function M.run(buf, first, last)
 	buf = buf == 0 and vim.api.nvim_get_current_buf() or buf
 	local ok, parser = pcall(vim.treesitter.get_parser, buf, 'php')
 	if not ok or not parser then
-		vim.notify('PhpDocParams: no treesitter php parser (:TSInstall php)', vim.log.levels.WARN)
+		vim.notify(SRC .. 'PhpDocParams: no treesitter php parser (:TSInstall php)', vim.log.levels.WARN)
 		return 0
 	end
 	local tree = parser:parse()[1]
@@ -248,7 +250,7 @@ function M.attach(buf)
 			first, last = cmd.line1 - 1, cmd.line2 - 1
 		end
 		local count = M.run(buf, first, last)
-		vim.notify(('PhpDocParams: updated %d function%s'):format(count, count == 1 and '' or 's'))
+		vim.notify((SRC .. 'PhpDocParams: updated %d function%s'):format(count, count == 1 and '' or 's'))
 	end, { range = true, desc = 'Add missing @param and @return tags to every function and method' })
 end
 

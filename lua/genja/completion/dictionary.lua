@@ -11,6 +11,8 @@
 -- version to stdpath('data')/dict/en.txt, which then wins over dict/en.txt on
 -- the runtimepath.
 
+local SRC = 'completion/dictionary.lua: '
+
 local URL = 'https://raw.githubusercontent.com/dolph/dictionary/master/popular.txt'
 local DOWNLOADED = vim.fs.joinpath(vim.fn.stdpath('data'), 'dict', 'en.txt')
 
@@ -161,13 +163,13 @@ local function updatePopular()
 		vim.schedule(function()
 			if res.code ~= 0 then
 				os.remove(file .. '.tmp')
-				vim.notify('DictionaryUpdatePopular: ' .. vim.trim(res.stderr), vim.log.levels.ERROR)
+				vim.notify(SRC .. 'DictionaryUpdatePopular: ' .. vim.trim(res.stderr), vim.log.levels.ERROR)
 				return
 			end
 			os.remove(file)
 			os.rename(file .. '.tmp', file)
 			cache = {}
-			vim.notify('DictionaryUpdatePopular: ' .. file)
+			vim.notify(SRC .. 'DictionaryUpdatePopular: ' .. file)
 		end)
 	end)
 end

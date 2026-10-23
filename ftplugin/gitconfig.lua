@@ -6,6 +6,8 @@
 -- Runs while lsp.enabled.gitconfig is true. Needs git on PATH; skipped
 -- otherwise, with a notice once per session.
 
+local SRC = 'ftplugin/gitconfig.lua: '
+
 if not require('genja.lsp').enabled('gitconfig') then
 	return
 end
@@ -13,7 +15,7 @@ end
 if vim.fn.executable('git') == 0 then
 	if not vim.g.genja_git_missing_notified then
 		vim.g.genja_git_missing_notified = true
-		vim.notify('genja: git is not on PATH, git config parse errors are not checked', vim.log.levels.WARN)
+		vim.notify(SRC .. 'git is not on PATH, git config parse errors are not checked', vim.log.levels.WARN)
 	end
 	return
 end

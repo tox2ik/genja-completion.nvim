@@ -42,6 +42,8 @@
 --   phpcs         WordPress only, when the project has a phpcs config or WPCS in vendor/.
 --   pint          Laravel only, run on the file after each save (phpactor can't run it).
 
+local SRC = 'lang/php.lua: '
+
 local is_win = vim.fn.has('win32') == 1
 
 local opts = vim.tbl_extend('force', { install = true }, require('genja.lsp').get().phpactor_wsl or {})
@@ -198,7 +200,7 @@ local function install()
 	end
 	local f = io.open(install_script, 'rb')
 	if not f then
-		vim.notify('genja: missing ' .. install_script, vim.log.levels.ERROR)
+		vim.notify(SRC .. 'missing ' .. install_script, vim.log.levels.ERROR)
 		return
 	end
 	-- Fed through stdin, without CRs, so a CRLF checkout still runs.
@@ -206,7 +208,7 @@ local function install()
 	f:close()
 	installing = true
 	local log = vim.fs.joinpath(vim.fn.stdpath('log'), 'phpactor-wsl-install.log')
-	vim.notify(('genja: installing PHP and phpactor in WSL%s ...'):format(
+	vim.notify((SRC .. 'installing PHP and phpactor in WSL%s ...'):format(
 		opts.distro and (' (' .. opts.distro .. ')') or ''))
 	vim.system(wsl({ '-e', 'sh', '-s' }, 'root'), { stdin = script, env = wsl_env, text = true },
 		vim.schedule_wrap(function(out)
@@ -220,11 +222,11 @@ local function install()
 			end
 			if out.code ~= 0 then
 				local last = vim.split(vim.trim(output), '\n')
-				vim.notify(('genja: phpactor install in WSL failed (%s): %s\nFull log: %s'):format(
+				vim.notify((SRC .. 'phpactor install in WSL failed (%s): %s\nFull log: %s'):format(
 					out.code, last[#last] or '', log), vim.log.levels.ERROR)
 				return
 			end
-			vim.notify('genja: phpactor installed in WSL, reindexing. Log: ' .. log)
+			vim.notify(SRC .. 'phpactor installed in WSL, reindexing. Log: ' .. log)
 			-- Stubs may have moved, and phpactor indexes them only on a project's
 			-- first index: stop it, drop its cache (all projects), start it again.
 			for _, client in ipairs(vim.lsp.get_clients({ name = 'phpactor' })) do
@@ -259,12 +261,12 @@ local function download(url, file, what)
 		return
 	end
 	vim.fn.mkdir(vim.fs.dirname(file), 'p')
-	vim.notify('genja: downloading ' .. what .. ' for phpactor ...')
+	vim.notify(SRC .. 'downloading ' .. what .. ' for phpactor ...')
 	local part = file .. '.part'
 	local out = vim.system({ 'curl', '-fsSL', '-o', part, url }):wait(60000)
 	if out.code ~= 0 or not vim.uv.fs_rename(part, file) then
 		vim.uv.fs_unlink(part)
-		vim.notify('genja: could not download ' .. what .. ': ' .. (out.stderr or ''), vim.log.levels.WARN)
+		vim.notify(SRC .. 'could not download ' .. what .. ': ' .. (out.stderr or ''), vim.log.levels.WARN)
 	end
 end
 
@@ -334,7 +336,7 @@ local function project_options(root)
 	if laravel and not has(root, '_ide_helper.php') and not warned[root] then
 		warned[root] = true
 		vim.notify(
-			'genja: Laravel without _ide_helper.php, facades will not resolve. In the project run:\n'
+			SRC .. 'Laravel without _ide_helper.php, facades will not resolve. In the project run:\n'
 				.. '  composer require --dev barryvdh/laravel-ide-helper\n'
 				.. '  php artisan ide-helper:generate && php artisan ide-helper:models -N\n'
 				.. 'and add both artisan lines to composer.json "post-update-cmd" to keep them fresh.',
@@ -390,7 +392,7 @@ local function pint_on_save(root, buf)
 			local cmd = is_win and wsl({ '--cd', to_wsl(root), '-e', pint, to_wsl(file) }) or { pint, file }
 			vim.system(cmd, { cwd = not is_win and root or nil, env = wsl_env, text = true }, vim.schedule_wrap(function(out)
 				if out.code ~= 0 then
-					vim.notify('pint: ' .. clean(out.stderr ~= '' and out.stderr or out.stdout), vim.log.levels.WARN)
+					vim.notify(SRC .. 'pint: ' .. clean(out.stderr ~= '' and out.stderr or out.stdout), vim.log.levels.WARN)
 				elseif vim.api.nvim_buf_is_valid(buf) and not vim.bo[buf].modified then
 					vim.api.nvim_buf_call(buf, function()
 						local view = vim.fn.winsaveview()

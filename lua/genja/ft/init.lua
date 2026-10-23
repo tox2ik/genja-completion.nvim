@@ -8,6 +8,8 @@
 -- Files are found on the runtimepath, so lua/genja/ft/<name>.lua in your
 -- Neovim config directory adds a filetype, or replaces the one shipped here.
 
+local SRC = 'ft/init.lua: '
+
 local M = {}
 
 function M.setup()
@@ -21,7 +23,7 @@ function M.setup()
 			if ok and type(spec) == 'table' then
 				vim.filetype.add(spec)
 			else
-				vim.notify(('genja.ft.%s: %s'):format(name, ok and 'must return a table' or spec), vim.log.levels.ERROR)
+				vim.notify((SRC .. 'genja.ft.%s: %s'):format(name, ok and 'must return a table' or spec), vim.log.levels.ERROR)
 			end
 		end
 	end

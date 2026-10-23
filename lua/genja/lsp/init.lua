@@ -15,6 +15,8 @@
 -- Language files are found on the runtimepath, so one in your Neovim config
 -- directory adds a language, or replaces the one of the same name shipped here.
 
+local SRC = 'lsp/init.lua: '
+
 local M = {}
 
 ---@class genja.Lang
@@ -37,7 +39,7 @@ end
 local function load_lang(name)
 	local file = ('lua/genja/lang/%s.lua'):format(name)
 	if #vim.api.nvim_get_runtime_file(file, false) == 0 then
-		vim.notify(('genja: language %q is enabled but there is no %s'):format(name, file), vim.log.levels.WARN)
+		vim.notify((SRC .. 'language %q is enabled but there is no %s'):format(name, file), vim.log.levels.WARN)
 		return
 	end
 	local ok, lang = pcall(require, 'genja.lang.' .. name)
@@ -45,7 +47,7 @@ local function load_lang(name)
 		return lang
 	end
 	vim.notify(
-		('genja.lang.%s: %s'):format(name, ok and 'must return a table' or lang),
+		(SRC .. 'genja.lang.%s: %s'):format(name, ok and 'must return a table' or lang),
 		vim.log.levels.ERROR
 	)
 end
@@ -69,7 +71,7 @@ local function install_tools(tools)
 		for _, name in ipairs(tools) do
 			local ok, pkg = pcall(registry.get_package, name)
 			if not ok then
-				vim.notify(('mason: unknown package %q'):format(name), vim.log.levels.WARN)
+				vim.notify((SRC .. 'mason: unknown package %q'):format(name), vim.log.levels.WARN)
 			elseif not pkg:is_installed() and not pkg:is_installing() then
 				pkg:install()
 			end

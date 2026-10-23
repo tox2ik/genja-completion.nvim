@@ -10,6 +10,8 @@
 -- :CheckHealthLspSimple and <Plug>CheckHealthLspSimple are always defined;
 -- see lua/genja/lsp/check.lua. Filetypes in lua/genja/ft/ are always added.
 
+local SRC = 'comps/init.lua: '
+
 local M = {}
 
 ---@class genja.Opts
@@ -20,7 +22,7 @@ local M = {}
 function M.setup(opts)
 	opts = opts or {}
 	if vim.fn.has('nvim-0.11') == 0 then
-		vim.notify('genja needs Neovim 0.11 or newer', vim.log.levels.ERROR)
+		vim.notify(SRC .. 'genja needs Neovim 0.11 or newer', vim.log.levels.ERROR)
 		return
 	end
 	-- Always on, also with lsp = false.

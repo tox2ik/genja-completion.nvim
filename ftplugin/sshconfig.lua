@@ -7,6 +7,8 @@
 -- Runs while lsp.enabled.sshconfig is true. Needs ssh on PATH (OpenSSH; part of
 -- Windows 10+); skipped otherwise, with a notice once per session.
 
+local SRC = 'ftplugin/sshconfig.lua: '
+
 if not require('genja.lsp').enabled('sshconfig') then
 	return
 end
@@ -14,7 +16,7 @@ end
 if vim.fn.executable('ssh') == 0 then
 	if not vim.g.genja_ssh_missing_notified then
 		vim.g.genja_ssh_missing_notified = true
-		vim.notify('genja: ssh is not on PATH, ssh config parse errors are not checked', vim.log.levels.WARN)
+		vim.notify(SRC .. 'ssh is not on PATH, ssh config parse errors are not checked', vim.log.levels.WARN)
 	end
 	return
 end

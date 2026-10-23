@@ -5,6 +5,8 @@
 -- Runs while lsp.enabled.make is true. Needs GNU make on PATH; skipped
 -- otherwise, with a notice once per session.
 
+local SRC = 'ftplugin/make.lua: '
+
 if not require('genja.lsp').enabled('make') then
 	return
 end
@@ -12,7 +14,7 @@ end
 if vim.fn.executable('make') == 0 then
 	if not vim.g.genja_make_missing_notified then
 		vim.g.genja_make_missing_notified = true
-		vim.notify('genja: make is not on PATH, Makefile parse errors are not checked', vim.log.levels.WARN)
+		vim.notify(SRC .. 'make is not on PATH, Makefile parse errors are not checked', vim.log.levels.WARN)
 	end
 	return
 end
