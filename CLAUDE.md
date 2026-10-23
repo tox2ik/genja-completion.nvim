@@ -84,7 +84,6 @@ code or history: confirm or delete. `Hint:` is a working note for Claude.
 - Tests: overseer templates (`lua/overseer/template/user/php_test*.lua` in the config) and neotest. phptools.nvim is only a README note.
 - `dap-php.lua`: the PHP adapter is set up inside the `enabled('php')` check, without an early return.
 - `:PhpDocParams` (`lua/genja/php_docparams.lua`, treesitter) adds missing `@param` and `@return` tags to every function in the file or range.
-- Hint: on disk the active file is `lang/Php.lua` while git tracks `php.lua` (case-only rename on Windows). Ask before renaming. (inferred)
 
 ### Lua, Go, Vimscript, JSON
 
