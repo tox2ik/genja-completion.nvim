@@ -128,12 +128,22 @@ function M.setup(opts)
 
 	local servers, tools = collect(M.config, true)
 
+	-- g:genja_lsp_no_install: enable what's there, install nothing (test runs start and kill
+	-- many nvims; an install cut off halfway leaves mason/staging behind)
+	local install = vim.g.genja_lsp_no_install ~= true
+	local ensure = {}
+	if install then
+		ensure = servers
+	end
+
 	require('mason').setup(M.config.mason)
 	require('mason-lspconfig').setup({
-		ensure_installed = servers,
+		ensure_installed = ensure,
 		automatic_enable = servers, -- vim.lsp.enable() these only, once installed
 	})
-	install_tools(tools)
+	if install then
+		install_tools(tools)
+	end
 end
 
 ---The settings in effect: what setup() resolved, or before setup() the defaults

@@ -64,6 +64,7 @@ code or history: confirm or delete. `Hint:` is a working note for Claude.
 
 - Run the headless check above only when jaro asks; otherwise give the command.
 - Publishing this plugin for other Windows users may be worth it later.
+- Integration tests: the config's `tests/comps011/` (`make dir D=comps011 G=<group>` in `tests/`): groups lsp, cmp, lint, fast, slow, gather; per-case timeouts and slow cutoffs, timings in `stdpath('state')`. They boot the real config with `g:genja_lsp_no_install` set, so mason installs nothing.
 
 ### Languages and local.lua
 
