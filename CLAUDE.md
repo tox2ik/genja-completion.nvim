@@ -119,4 +119,4 @@ code or history: confirm or delete. `Hint:` is a working note for Claude.
 - `:DictionaryUpdatePopular` downloads into `stdpath('data')`; `make update-dict` refreshes the shipped list from the URL in `dictionary.lua`.
 - Alternatives to nvim-cmp (built-in completion, blink.cmp) are under evaluation; notes in the README.
 - Hint: the custom cmp sources need no extra plugins; keep it that way.
-- Command line (`: / ?`, `completion/cmdline.lua`): `<Tab>` next, `<S-Tab>` previous (both open the menu), `<Down>`/`<Up>` next/previous while the menu is open, else history.
+- Command line (`: / ?`, `completion/cmdline.lua`): `<Tab>` next, `<S-Tab>` previous (both open the menu), `<C-j>`/`<C-k>` next/previous while the menu is open, `<Down>`/`<Up>` always history (closes the menu).

@@ -18,8 +18,8 @@ return function(cmp)
 		end
 	end
 
-	-- <Down>/<Up> pick items while the menu is open, else recall history.
-	local function down(fallback)
+	-- <C-j>/<C-k> pick items while the menu is open, else do their native thing.
+	local function next_item(fallback)
 		if cmp.visible() then
 			cmp.select_next_item()
 		else
@@ -27,7 +27,7 @@ return function(cmp)
 		end
 	end
 
-	local function up(fallback)
+	local function prev_item(fallback)
 		if cmp.visible() then
 			cmp.select_prev_item()
 		else
@@ -35,13 +35,23 @@ return function(cmp)
 		end
 	end
 
+	-- <Down>/<Up> always recall history; the menu is closed first so it doesn't linger.
+	local function history(fallback)
+		if cmp.visible() then
+			cmp.close()
+		end
+		fallback()
+	end
+
 	-- Explicit, not only the preset: these win over the preset's keys.
 	local function mapping()
 		return cmp.mapping.preset.cmdline({
 			['<Tab>'] = cmp.mapping(tab, { 'c' }),
 			['<S-Tab>'] = cmp.mapping(shift_tab, { 'c' }),
-			['<Down>'] = cmp.mapping(down, { 'c' }),
-			['<Up>'] = cmp.mapping(up, { 'c' }),
+			['<C-j>'] = cmp.mapping(next_item, { 'c' }),
+			['<C-k>'] = cmp.mapping(prev_item, { 'c' }),
+			['<Down>'] = cmp.mapping(history, { 'c' }),
+			['<Up>'] = cmp.mapping(history, { 'c' }),
 		})
 	end
 
