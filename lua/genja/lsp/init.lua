@@ -10,6 +10,7 @@
 --     {
 --       servers = { <lspconfig name> = <vim.lsp.Config overrides>, ... },
 --       tools   = { <mason package name>, ... },
+--       note    = <one line, for a language without a server>,
 --     }
 --
 -- Language files are found on the runtimepath, so one in your Neovim config
@@ -22,6 +23,7 @@ local M = {}
 ---@class genja.Lang
 ---@field servers? table<string, vim.lsp.Config>
 ---@field tools? string[]
+---@field note? string one line on what the language does without a server; shown by the config's `make status`
 
 ---config.lua, then setup() opts, then local.lua when that file exists.
 ---@param opts? genja.lsp.Opts
@@ -110,6 +112,34 @@ end
 function M.packages()
 	local servers, tools = collect(M.get())
 	return vim.list_extend(servers, tools)
+end
+
+---@class genja.lsp.Language
+---@field name string key in `enabled`
+---@field on boolean
+---@field servers string[] lspconfig names
+---@field tools string[] mason package names
+---@field note? string from the language file
+
+---Every language in `enabled`, on or off, with what it brings. For the config's `make status`.
+---@return genja.lsp.Language[]
+function M.languages()
+	local result = {}
+	for name, on in vim.spairs(M.get().enabled or {}) do
+		local lang = load_lang(name) or {}
+		local servers = vim.tbl_keys(lang.servers or {})
+		table.sort(servers)
+		table.insert(result, { name = name, on = on == true, servers = servers, tools = lang.tools or {}, note = lang.note })
+	end
+	return result
+end
+
+---Servers (lspconfig names) the enabled languages want, installed or not.
+---For lsp/installed.lua: mason-lspconfig enables a server only once it is installed.
+---@return string[]
+function M.servers()
+	local servers = collect(M.get())
+	return servers
 end
 
 ---@param opts? genja.lsp.Opts

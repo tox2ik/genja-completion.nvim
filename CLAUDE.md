@@ -11,6 +11,11 @@ Read README.md for the user-facing picture.
 - `lua/genja/lsp/init.lua`: loads enabled languages, calls `vim.lsp.config()`,
   mason-lspconfig `ensure_installed` + `automatic_enable`, installs tools.
 - `lua/genja/lsp/config.lua`: defaults (`enabled` table, mason, diagnostics).
+- `lua/genja/lsp/health.lua`: `:checkhealth genja.lsp`, three sections from the modules below. Each also has a case in the config's `tests/comps011` (group `mason`).
+    - `lsp/installed.lua`: servers the enabled languages want (`require('genja.lsp').servers()`) whose cmd is not executable. mason-lspconfig only enables installed servers, so a missing one is otherwise silent. Case `mason: servers installed` (needs the child).
+    - `lsp/venv.lua`: mason Python venvs whose base Python is gone (autotools_ls exit 103). Case `mason: python-venv`.
+    - `lsp/shim.lua`: launchers in `mason/bin` whose target is gone. Case `mason: shims`.
+    - `venv.lua` and `shim.lua` have no requires: the tests load them with `dofile`, without a child.
 - `lua/genja/lang/<name>.lua`: one language each, returns
   `{ servers = { <lspconfig name> = overrides }, tools = { <mason pkg> } }`.
 - `lua/genja/ft/<ft>.lua`: `vim.filetype.add()` specs.
@@ -64,13 +69,14 @@ code or history: confirm or delete. `Hint:` is a working note for Claude.
 
 - Run the headless check above only when jaro asks; otherwise give the command.
 - Publishing this plugin for other Windows users may be worth it later.
-- Integration tests: the config's `tests/comps011/` (`make dir D=comps011 G=<group>` in `tests/`): groups lsp, cmp, lint, fast, slow, gather; per-case timeouts and slow cutoffs, timings in `stdpath('state')`. They boot the real config with `g:genja_lsp_no_install` set, so mason installs nothing.
+- Integration tests: the config's `tests/comps011/` (`make test D=comps011 G=<group>` in `tests/`): groups mason, lsp, ready, cmp, lint, fast, slow, gather, or a case name (lua_ls, typos ...); `pwsh -File tests/manual/measure-lua-ls.ps1` times lua_ls by hand; per-case timeouts and slow cutoffs, timings in `stdpath('state')`. They boot the real config with `g:genja_lsp_no_install` set, so mason installs nothing.
 
 ### Languages and local.lua
 
 - A language is switched on per machine in the config's `lua/genja/lsp/local.lua`, not in the spec's `enabled` table.
 - Languages without a server (gitconfig, sshconfig) still get a `lang/<name>.lua` with no servers, so they can be switched on and off.
 - `require('genja.lsp').get()` and `.enabled(name)` expose the merged settings to other specs (used by `lazyp/debug/dap-php.lua`).
+- `.servers()`: servers the enabled languages want, installed or not (`lsp/installed.lua`). `.languages()`: every language on or off, with its servers and tools (the config's `make status` in `tests/`).
 
 ### PHP
 

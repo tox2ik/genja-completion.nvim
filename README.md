@@ -336,6 +336,28 @@ vim.keymap.set('n', '<leader>ch', '<Plug>CheckHealthLspSimple', { desc = 'LSP ch
 
 The code is in `lua/genja/lsp/check.lua`.
 
+### Health check: missing and broken servers
+
+`:checkhealth genja.lsp` checks three ways a server or tool silently never
+starts, and names the fix for each:
+
+- **Servers not installed.** mason-lspconfig enables a server only once it is
+  installed, so a missing server of an enabled language just never attaches.
+  The check lists every server the enabled languages want and whether its
+  command is executable (`lua/genja/lsp/installed.lua`).
+- **Python tools whose Python is gone.** mason installs Python tools
+  (autotools-language-server, gitlint, yamllint ...) into a venv per package:
+  `mason/packages/<package>/venv/`. Its `pyvenv.cfg` names the Python it was
+  built from (`home =`). When that Python is uninstalled or moved, the tool
+  exits at once (code 103 on Windows). Fix: `:MasonInstall --force <package>`
+  (`lua/genja/lsp/venv.lua`).
+- **Launchers whose target is gone.** Every tool has a launcher in
+  `mason/bin` (a `.cmd` file on Windows, a symlink elsewhere). One left behind
+  by an interrupted uninstall or update still counts as executable. Launchers
+  from an older mason name their target by full path; they work, but break if
+  the mason folder moves, so they show as a warning
+  (`lua/genja/lsp/shim.lua`).
+
 ## Alternatives to nvim-cmp
 
 Not used yet. Notes for a later comparison:

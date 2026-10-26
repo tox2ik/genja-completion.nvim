@@ -4,4 +4,6 @@
 -- Keyword and value completion is the sshconfig completion feature, which
 -- also covers sshd_config.
 ---@type genja.Lang
-return {}
+return {
+	note = 'parse errors: ftplugin/sshconfig.lua',
+}
