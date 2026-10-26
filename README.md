@@ -162,6 +162,16 @@ the first argument; `<Tab>` jumps to the next. Set per server:
 | lua_ls | `Lua.completion.callSnippet`            | `'Replace'` (set here): the snippet only<br>`'Both'`: the plain name and the snippet as two menu entries<br>`'Disable'`: name only (lua_ls default) |
 | gopls  | `gopls.usePlaceholders`                 | `true` (set here): with argument placeholders<br>`false`: `name()` only, cursor inside the parentheses |
 
+### lua_ls without libraries
+
+lua_ls answers completion requests with an empty list until it has indexed its
+libraries: the Neovim runtime and required plugins (lazydev.nvim) and
+`workspace.library` in `lang/lua.lua`. That takes 5-7 s on a laptop CPU.
+Set the environment variable `GENJA_LUA_NO_LIB=1` before starting Neovim to
+skip them: lazydev turns off, `workspace.library` stays empty, and lua_ls
+answers much sooner. Locals and the Lua standard library still complete;
+`vim.*` and plugin types don't. The config's `tests/Makefile` sets it by default.
+
 ### Add or change a language
 
 Language files are looked up on the runtimepath, so they do not have to live in

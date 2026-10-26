@@ -89,6 +89,7 @@ code or history: confirm or delete. `Hint:` is a working note for Claude.
 ### Lua, Go, Vimscript, JSON
 
 - lua_ls: `root_dir` ignores the home folder (single-file mode instead), workspace preload limits, `callSnippet = 'Replace'`. README documents `'Both'` and `'Disable'`.
+- lua_ls: env `GENJA_LUA_NO_LIB=1` loads no libraries: `workspace.library` empty (`lang/lua.lua`), lazydev `enabled` returns false (config's `lua/lazyp/langs-comps/lazydev.lua`). The config's `tests/Makefile` sets it by default (`?=`, exported); tests check that lua_ls works, not its libraries. `tests/manual/measure-lua-ls.ps1 -NoLib` times it.
 - lua_ls: on a slow PC it flags `vim`, `require` etc. as undefined globals until the workspace is loaded. `on_attach` hides the buffer's diagnostics until lua_ls's first `LspProgress` 'end', or 10s at most.
 - gopls: root is `go.work`, then `go.mod`, then `.git`; home folder ignored. Sample workspace in `examples/go/`.
 - gopls: a `.go` file with no `go.mod`/`go.work` above it (single-file mode, code actions fail with "missing metadata") warns once per folder with the `go mod init` fix.

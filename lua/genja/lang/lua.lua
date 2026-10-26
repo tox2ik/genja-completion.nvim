@@ -7,7 +7,18 @@
 -- Until lua_ls has loaded the workspace it flags vim, require and other
 -- well-known globals as undefined (slow PCs). A buffer's diagnostics stay hidden
 -- until lua_ls reports its first progress 'end', or SHOW_AFTER ms at most.
-local lazy_lib = vim.fs.normalize(vim.fs.joinpath(vim.fn.stdpath('data'), 'lazy', 'lazy.nvim', 'lua'))
+--
+-- env GENJA_LUA_NO_LIB=1 (set by the config's tests/Makefile): no workspace.library
+-- here and lazydev off (lua/lazyp/langs-comps/lazydev.lua), so lua_ls answers
+-- without indexing the Neovim runtime first.
+local lazy_lib = vim.fs.normalize(
+    vim.fs.joinpath(
+        vim.fn.stdpath('data'), 'lazy', 'lazy.nvim', 'lua'))
+
+local library = { lazy_lib }
+if vim.env.GENJA_LUA_NO_LIB ~= nil and vim.env.GENJA_LUA_NO_LIB ~= '' then
+	library = {}
+end
 
 local SHOW_AFTER = 10000 -- ms; fallback when no progress 'end' arrives
 
@@ -61,35 +72,43 @@ end
 ---@type genja.Lang
 return {
 	servers = {
+
 		lua_ls = {
 			-- Same markers as nvim-lspconfig, but a root at the home folder (a stray
 			-- .git or .luarc.json in C:\Users\<me>) is dropped: lua_ls then runs in
 			-- single-file mode instead of scanning the whole profile.
+
 			root_dir = function(bufnr, on_dir)
 				local root = vim.fs.root(bufnr, {
 					'.luarc.json', '.luarc.jsonc', '.emmyrc.json', '.luacheckrc',
 					'.stylua.toml', 'stylua.toml', 'selene.toml', 'selene.yml', '.git',
 				})
+
 				local norm = function(p) return vim.fs.normalize(p):lower() end
 				if root and norm(root) == norm(vim.uv.os_homedir()) then
 					root = nil
 				end
 				on_dir(root)
 			end,
+
 			on_attach = function(client, bufnr)
 				hide_until_ready(client, bufnr)
 			end,
+
 			settings = {
 				Lua = {
+
 					-- like gopls usePlaceholders: function completions insert name(arg1, arg2)
 					-- as a snippet, cursor on the first argument. 'Both': offer both forms.
 					completion = { callSnippet = 'Replace' },
+
 					workspace = {
 						checkThirdParty = false,
-						library = { lazy_lib },
+						library = library,
 						maxPreload = 2000, -- files; safety net if a root is still too big
 						preloadFileSize = 500, -- KB
 					},
+
 					diagnostics = {
 						disable = { 'lowercase-global' },
 						globals = {
@@ -98,6 +117,7 @@ return {
 							'IsDir',
 						},
 					},
+
 				},
 			},
 		},
