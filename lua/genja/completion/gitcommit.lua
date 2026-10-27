@@ -26,26 +26,10 @@ local FOOTERS = {
 	{ label = 'Co-authored-by: ', doc = 'Name <email>' },
 }
 
-local source = {}
+local source = require('genja.completion.source')
 
 ---@type table<integer, string[]> scopes by buffer, read once
 local scope_cache = {}
-
-function source.new()
-	return setmetatable({}, { __index = source })
-end
-
-function source:get_trigger_characters()
-	return { '(' }
-end
-
-function source:get_keyword_pattern()
-	return [=[[[:alnum:]_-]*]=]
-end
-
-function source:is_available()
-	return vim.bo.filetype == 'gitcommit' and vim.b.genja_commit_conventional == true
-end
 
 ---genja-commit's type list (opt conventional_types), else the standard one.
 ---@return string[]
@@ -89,50 +73,41 @@ local function scopes(buf)
 	return list
 end
 
-function source:complete(params, callback)
-	local kind = require('cmp').lsp.CompletionItemKind
-	local buf = params.context.bufnr
-	local row = params.context.cursor.row -- 1-based
-	local before = params.context.cursor_before_line
-	local items = {}
-
-	if row == 1 and before:match('^[%w-]*$') then
-		for _, name in ipairs(type_list()) do
-			table.insert(items, {
-				label = name,
-				kind = kind.Keyword,
-				documentation = TYPES[name],
-			})
-		end
-	elseif row == 1 and before:match('^[%w-]+%([%w-]*$') then
-		for i, scope in ipairs(scopes(buf)) do
-			table.insert(items, {
-				label = scope,
-				kind = kind.EnumMember,
-				sortText = ('%04d'):format(i), -- keep "most used first"
-			})
-		end
-	elseif row >= 3 and before:match('^[%w-]*$') then
-		for _, footer in ipairs(FOOTERS) do
-			table.insert(items, {
-				label = footer.label,
-				filterText = footer.label,
-				kind = kind.Text,
-				documentation = footer.doc,
-			})
-		end
+---@param c genja.completion.SourceCtx
+---@return lsp.CompletionItem[]
+local function items(c)
+	local kind = source.kind
+	if c.row == 1 and c.before:match('^[%w-]*$') then
+		return vim.tbl_map(function(name)
+			return { label = name, kind = kind.Keyword, documentation = TYPES[name] }
+		end, type_list())
 	end
-	callback({ items = items, isIncomplete = false })
+	if c.row == 1 and c.before:match('^[%w-]+%([%w-]*$') then
+		local list = {}
+		for i, scope in ipairs(scopes(c.bufnr)) do
+			-- sortText keeps "most used first"
+			table.insert(list, { label = scope, kind = kind.EnumMember, sortText = ('%04d'):format(i) })
+		end
+		return list
+	end
+	if c.row >= 3 and c.before:match('^[%w-]*$') then
+		return vim.tbl_map(function(footer)
+			return { label = footer.label, kind = kind.Text, documentation = footer.doc }
+		end, FOOTERS)
+	end
+	return {}
 end
 
 ---@type genja.completion.Feature
-return function(cmp, _)
-	cmp.register_source('gitcommit', source.new())
-	cmp.setup.filetype('gitcommit', {
-		sources = cmp.config.sources({
-			{ name = 'gitcommit', keyword_length = 0 },
-		}, {
-			{ name = 'buffer' },
-		}),
+return function(config)
+	source.register(config, 'gitcommit', {
+		filetypes = { 'gitcommit' },
+		with = { 'buffer' },
+		fallbacks = { 'buffer' },
+		triggers = { '(' },
+		enabled = function()
+			return vim.bo.filetype == 'gitcommit' and vim.b.genja_commit_conventional == true
+		end,
+		items = items,
 	})
 end

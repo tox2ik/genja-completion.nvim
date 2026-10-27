@@ -198,56 +198,47 @@ local function ssh_query(query)
 	return queried[query]
 end
 
-local source = {}
+local source = require('genja.completion.source')
 
-function source.new()
-	return setmetatable({}, { __index = source })
-end
-
-function source:get_trigger_characters()
-	return { ' ', ',', '=' }
-end
-
--- Option names and values: aes128-ctr, hmac-sha2-256@openssh.com, accept-new
-function source:get_keyword_pattern()
-	return [=[[[:alnum:]@._-]\+]=]
-end
-
-function source:complete(params, callback)
-	local spec = SPEC[vim.bo[params.context.bufnr].filetype]
-	local before = params.context.cursor_before_line
-	if not spec or before:match('^%s*#') then
-		return callback({})
+---@param c genja.completion.SourceCtx
+---@return lsp.CompletionItem[]
+local function items(c)
+	local spec = SPEC[vim.bo[c.bufnr].filetype]
+	if not spec or c.before:match('^%s*#') then
+		return {}
 	end
-
-	local kind = require('cmp').lsp.CompletionItemKind
-	---@param words string[]
-	---@param k integer
-	local function items(words, k)
-		return vim.tbl_map(function(word) return { label = word, kind = k } end, words)
+	if c.before:match('^%s*%w*$') then
+		return source.labels(spec.keywords, source.kind.Property)
 	end
-	if before:match('^%s*%w*$') then
-		return callback({ items = items(spec.keywords, kind.Property) })
-	end
-
 	-- Option, then whitespace and/or '=', then its arguments.
-	local option = (before:match('^%s*(%w+)[%s=]') or ''):lower()
+	local option = (c.before:match('^%s*(%w+)[%s=]') or ''):lower()
 	local values = spec.values[option]
 	if not values and QUERY[option] then
 		values = ssh_query(QUERY[option])
 	end
-	callback({ items = items(values or {}, kind.EnumMember) })
+	return source.labels(values or {}, source.kind.EnumMember)
 end
 
+local FILETYPES = { 'sshconfig', 'sshdconfig' }
+
 ---@type genja.completion.Feature
-return function(cmp, _)
-	cmp.register_source('sshconfig', source.new())
-	cmp.setup.filetype({ 'sshconfig', 'sshdconfig' }, {
-		sources = cmp.config.sources({
-			{ name = 'sshconfig', keyword_length = 1 },
-			{ name = 'path' },
-		}, {
-			{ name = 'buffer' },
-		}),
+return function(config)
+	source.register(config, 'sshconfig', {
+		filetypes = FILETYPES,
+		with = { 'path', 'buffer' },
+		fallbacks = { 'buffer' },
+		triggers = { ' ', ',', '=' },
+		-- values like aes128-ctr, hmac-sha2-256@openssh.com, accept-new
+		replace = '[%w@._-]*',
+		items = items,
 	})
+	-- blink blocks space as a trigger character; the values come after one here
+	config.completion.trigger = {
+		show_on_blocked_trigger_characters = function()
+			if vim.tbl_contains(FILETYPES, vim.bo.filetype) then
+				return { '\n', '\t' }
+			end
+			return { ' ', '\n', '\t' }
+		end,
+	}
 end

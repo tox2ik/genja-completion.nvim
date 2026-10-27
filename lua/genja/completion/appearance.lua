@@ -1,32 +1,16 @@
--- Menu and documentation windows, and the kind icons.
+-- Menu and documentation windows. blink draws the kind icons itself (Nerd Font, mono).
 ---@type genja.completion.Feature
-return function(_, opts)
-	opts.window = {
-		completion = {
-			side_padding = 1,
-			scrolloff = 2,
-			winblend = 4,
-			winhighlight = 'NormalFloat:StatusLine,FloatBorder:NormalFloat',
-		},
-		documentation = {
-			winblend = 4,
-		},
+return function(config)
+	config.completion.menu = {
+		winblend = 4,
+		scrolloff = 2,
+		-- the menu in the StatusLine colours, as with nvim-cmp before
+		winhighlight = 'Normal:StatusLine,FloatBorder:NormalFloat,CursorLine:BlinkCmpMenuSelection,Search:None',
+		draw = { padding = 1 },
 	}
-
-	opts.formatting = {
-		fields = { 'kind', 'abbr', 'menu' },
-		expandable_indicator = true,
+	config.completion.documentation = {
+		auto_show = true, -- nvim-cmp showed it for the selected item
+		window = { winblend = 4 },
 	}
-
-	local has_lspkind, lspkind = pcall(require, 'lspkind')
-	if has_lspkind then
-		opts.formatting.format = lspkind.cmp_format({
-			mode = 'symbol',
-			maxwidth = function()
-				return math.floor(0.96 * vim.o.columns)
-			end,
-			ellipsis_char = '…',
-			show_labelDetails = true,
-		})
-	end
+	config.appearance = { nerd_font_variant = 'mono' }
 end

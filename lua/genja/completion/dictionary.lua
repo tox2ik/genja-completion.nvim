@@ -16,7 +16,7 @@ local SRC = 'completion/dictionary.lua: '
 local URL = 'https://raw.githubusercontent.com/dolph/dictionary/master/popular.txt'
 local DOWNLOADED = vim.fs.joinpath(vim.fn.stdpath('data'), 'dict', 'en.txt')
 
-local source = {}
+local source = require('genja.completion.source')
 
 ---@class genja.completion.DictEntry
 ---@field mtime integer
@@ -131,25 +131,19 @@ local function files(bufnr)
 	return vim.tbl_map(vim.fs.normalize, list)
 end
 
-function source.new()
-	return setmetatable({}, { __index = source })
-end
-
-function source:get_keyword_pattern()
-	return [[\a\+]]
-end
-
-function source:complete(params, callback)
-	local typed = params.context.cursor_before_line:match('%a+$')
+---Words starting with the letters before the cursor; capitalised when those start with a capital.
+---@param c genja.completion.SourceCtx
+---@return lsp.CompletionItem[]
+local function items(c)
+	local typed = c.before:match('%a+$')
 	if not typed or #typed < 2 then
-		return callback({})
+		return {}
 	end
 	local prefix = typed:lower()
-	local upper = typed:sub(1, 1):match('%u') ~= nil
+	local upper = (typed:sub(1, 1):match('%u') ~= nil)
 
-	local kind = require('cmp').lsp.CompletionItemKind.Text
-	local items, seen = {}, {}
-	for _, file in ipairs(files(params.context.bufnr)) do
+	local list, seen = {}, {}
+	for _, file in ipairs(files(c.bufnr)) do
 		for _, word in ipairs(load(file)[prefix:sub(1, 2)] or {}) do
 			if word:lower():sub(1, #prefix) == prefix then
 				local label = word
@@ -158,12 +152,12 @@ function source:complete(params, callback)
 				end
 				if not seen[label] then
 					seen[label] = true
-					table.insert(items, { label = label, kind = kind })
+					table.insert(list, { label = label, kind = source.kind.Text })
 				end
 			end
 		end
 	end
-	callback({ items = items, isIncomplete = true })
+	return list
 end
 
 local function updatePopular()
@@ -185,12 +179,27 @@ local function updatePopular()
 end
 
 ---@type genja.completion.Feature
-return function(cmp, _)
-	cmp.register_source('dictionary', source.new())
+return function(config)
+	local filetypes = { 'text', 'markdown' }
+	source.register(config, 'dictionary', {
+		filetypes = filetypes,
+		with = { 'lsp', 'path', 'buffer' },
+		replace = '%a*',
+		incomplete = true, -- the list depends on the prefix
+		provider = { min_keyword_length = 3, max_items = 20 },
+		items = items,
+	})
+	-- like the buffer words: only when the language server and the path source have nothing
+	for _, id in ipairs({ 'lsp', 'path' }) do
+		config.sources.providers[id] = vim.tbl_extend('force', config.sources.providers[id] or {}, {
+			fallbacks = { 'buffer', 'dictionary' },
+		})
+	end
+
 	vim.api.nvim_create_user_command('DictionaryUpdatePopular', updatePopular, { desc = 'Download dict/en.txt' })
 	-- Start indexing when a buffer opens; the cache is shared, later buffers only check mtimes.
 	vim.api.nvim_create_autocmd('FileType', {
-		pattern = { 'text', 'markdown' },
+		pattern = filetypes,
 		group = vim.api.nvim_create_augroup('genja.completion.dictionary', {}),
 		callback = function(ev)
 			vim.schedule(function()
@@ -201,14 +210,5 @@ return function(cmp, _)
 				end
 			end)
 		end,
-	})
-	cmp.setup.filetype({ 'text', 'markdown' }, {
-		sources = cmp.config.sources({
-			{ name = 'nvim_lsp' },
-			{ name = 'path' },
-		}, {
-			{ name = 'buffer' },
-			{ name = 'dictionary', keyword_length = 3, max_item_count = 20 },
-		}),
 	})
 end

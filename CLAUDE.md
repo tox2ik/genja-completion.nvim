@@ -1,6 +1,6 @@
 # genja-completion011.nvim
 
-LSP + nvim-cmp plugin for Neovim 0.11+, loaded from disk by the user's config
+LSP + blink.cmp plugin for Neovim 0.11+, loaded from disk by the user's config
 at `../../lua/lazyp/new/genja-comp011.lua` (lazy.nvim `dir =` spec). Config
 root is `../..` (`%LOCALAPPDATA%\nvim`); plugin data is `%LOCALAPPDATA%\nvim-data`.
 Read README.md for the user-facing picture.
@@ -21,7 +21,7 @@ Read README.md for the user-facing picture.
 - `lua/genja/ft/<ft>.lua`: `vim.filetype.add()` specs.
 - `ftplugin/*.lua`: diagnostics from a tool's own parser for languages with
   no server (make, gitconfig, sshconfig).
-- `lua/genja/completion/*.lua`: one nvim-cmp feature per file.
+- `lua/genja/completion/*.lua`: one blink.cmp feature per file; `source.lua` builds the plugin's own sources from an `items(c)` function.
 
 ## Adding a language (e.g. json → jsonls)
 
@@ -119,12 +119,14 @@ code or history: confirm or delete. `Hint:` is a working note for Claude.
 
 ### Completion features
 
-- One nvim-cmp feature per file in `lua/genja/completion/`, listed in the spec's `features`.
+- One blink.cmp feature per file in `lua/genja/completion/`, listed in the spec's `features`.
+- blink.cmp replaced nvim-cmp in 2026-10 (tag `before-blink-2026-w44`). `<CR>` takes the preselected item (blink default); the old behaviour is commented out in `keymaps.lua`. Fuzzy matcher: the prebuilt Rust one (`prefer_rust_with_warning`).
+- Own sources go through `source.register()`; blink requires `genja.completion.source` for each and picks it by `opts.id`.
+- Tests: the config's `tests/completion/` (sources, cmdline, `<CR>`, ask popup) and the `cmp` group of `tests/comps011/`.
 - `gitignore` (file names in gitignore/gitattributes) is on by default.
 - `gitcommit`: Conventional Commits types, scopes from `git log`, footers; only while genja-commit's mode is on (`b:genja_commit_conventional`). Types from `genja-commit.config` when loaded, else the standard list. Lives here next to the other sources, not in genja-commit.
 - `dictionary` is for `text` and `markdown` only. Word source order: buffer `'dictionary'`, then `stdpath('data')/dict/en.txt`, then the shipped `dict/en.txt`; words from the spell `.add` file are always included.
 - The dictionary index is built on the first text/markdown `FileType`: async read, then chunked indexing. Nothing is read at startup.
 - `:DictionaryUpdatePopular` downloads into `stdpath('data')`; `make update-dict` refreshes the shipped list from the URL in `dictionary.lua`.
-- Alternatives to nvim-cmp (built-in completion, blink.cmp) are under evaluation; notes in the README.
-- Hint: the custom cmp sources need no extra plugins; keep it that way.
+- Hint: the own sources need no extra plugins; keep it that way.
 - Command line (`: / ?`, `completion/cmdline.lua`): `<Tab>` next, `<S-Tab>` previous (both open the menu), `<C-j>`/`<C-k>` next/previous while the menu is open, `<Down>`/`<Up>` always history (closes the menu).

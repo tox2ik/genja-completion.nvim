@@ -149,10 +149,11 @@ function M.setup(opts)
 		vim.diagnostic.config(M.config.diagnostics)
 	end
 
-	-- Add nvim-cmp capabilities to every server.
-	local has_cmp, cmp_lsp = pcall(require, 'cmp_nvim_lsp')
-	if has_cmp then
-		vim.lsp.config('*', { capabilities = cmp_lsp.default_capabilities() })
+	-- blink.cmp's completion capabilities for every server (blink sets them on 0.11 too;
+	-- explicit here, so the order of the two setups doesn't matter)
+	local has_blink, blink = pcall(require, 'blink.cmp')
+	if has_blink then
+		vim.lsp.config('*', { capabilities = blink.get_lsp_capabilities() })
 	end
 
 	local servers, tools = collect(M.config, true)

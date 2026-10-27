@@ -1,76 +1,37 @@
 -- Command-line completion.
+--   :      Ex commands and their arguments (file names, :help topics): blink's cmdline source
+--   / ?    words from the buffer
+-- <Tab>/<S-Tab> open the menu and walk it (blink's cmdline preset), <C-j>/<C-k> walk it while
+-- it is open, <Down>/<Up> always recall history (the menu closes first).
+
+---Close the menu, then let the key do its own thing (history).
+---@param cmp table blink.cmp
+local function hide(cmp)
+	if cmp.is_menu_visible() then
+		cmp.hide()
+	end
+end
+
 ---@type genja.completion.Feature
-return function(cmp)
-	-- <Tab> forward, <S-Tab> back; both open the menu when it is closed.
-	local function tab()
-		if cmp.visible() then
-			cmp.select_next_item()
-		else
-			cmp.complete()
-		end
-	end
-
-	local function shift_tab()
-		if cmp.visible() then
-			cmp.select_prev_item()
-		else
-			cmp.complete()
-		end
-	end
-
-	-- <C-j>/<C-k> pick items while the menu is open, else do their native thing.
-	local function next_item(fallback)
-		if cmp.visible() then
-			cmp.select_next_item()
-		else
-			fallback()
-		end
-	end
-
-	local function prev_item(fallback)
-		if cmp.visible() then
-			cmp.select_prev_item()
-		else
-			fallback()
-		end
-	end
-
-	-- <Down>/<Up> always recall history; the menu is closed first so it doesn't linger.
-	local function history(fallback)
-		if cmp.visible() then
-			cmp.close()
-		end
-		fallback()
-	end
-
-	-- Explicit, not only the preset: these win over the preset's keys.
-	local function mapping()
-		return cmp.mapping.preset.cmdline({
-			['<Tab>'] = cmp.mapping(tab, { 'c' }),
-			['<S-Tab>'] = cmp.mapping(shift_tab, { 'c' }),
-			['<C-j>'] = cmp.mapping(next_item, { 'c' }),
-			['<C-k>'] = cmp.mapping(prev_item, { 'c' }),
-			['<Down>'] = cmp.mapping(history, { 'c' }),
-			['<Up>'] = cmp.mapping(history, { 'c' }),
-		})
-	end
-
-	-- `:` Ex commands and their arguments. This also covers :help topics,
-	-- because cmp-cmdline asks Neovim for the same candidates <Tab> would give.
-	cmp.setup.cmdline(':', {
-		mapping = mapping(),
-		sources = cmp.config.sources({
-			{ name = 'path' },
-		}, {
-			{ name = 'cmdline', option = { ignore_cmds = { 'Man', '!', 'w' } } },
-		}),
-	})
-
-	-- `/` and `?` search: words from the buffer.
-	cmp.setup.cmdline({ '/', '?' }, {
-		mapping = mapping(),
-		sources = {
-			{ name = 'buffer' },
+return function(config)
+	config.cmdline = {
+		keymap = {
+			preset = 'cmdline',
+			['<C-j>'] = { 'select_next', 'fallback' },
+			['<C-k>'] = { 'select_prev', 'fallback' },
+			['<Down>'] = { hide, 'fallback' },
+			['<Up>'] = { hide, 'fallback' },
 		},
-	})
+		sources = function()
+			local type = vim.fn.getcmdtype()
+			if type == '/' or type == '?' then
+				return { 'buffer' }
+			end
+			if type == ':' or type == '@' then
+				return { 'cmdline' }
+			end
+			return {}
+		end,
+		completion = { menu = { auto_show = true } }, -- as with nvim-cmp's cmdline setup
+	}
 end

@@ -5,8 +5,9 @@ Language servers and completion for Neovim 0.11+, as one plugin with one
 
 - **LSP**: one small file per language. Mason installs the servers and tools of
   the languages you turn on, and only those servers are enabled.
-- **Completion**: nvim-cmp, one small file per feature (keys, sources, command
-  line, appearance).
+- **Completion**: blink.cmp, one small file per feature (keys, sources, command
+  line, appearance). Its own sources (gitignore, sshconfig, gitcommit,
+  dictionary) are built by `lua/genja/completion/source.lua`.
 
 ## Install
 
@@ -22,14 +23,9 @@ With lazy.nvim. While the plugin lives on disk, point `dir` at it:
 		'neovim/nvim-lspconfig',
 		'mason-org/mason.nvim',
 		'mason-org/mason-lspconfig.nvim', -- 2.x
-		-- completion
-		'hrsh7th/nvim-cmp',
-		'hrsh7th/cmp-nvim-lsp',
-		'hrsh7th/cmp-buffer',
-		'hrsh7th/cmp-path',
-		'hrsh7th/cmp-cmdline',
+		-- completion; a release tag, so blink downloads its prebuilt fuzzy matcher
+		{ 'saghen/blink.cmp', version = '1.*' },
 		-- optional
-		'onsails/lspkind.nvim', -- kind icons in the menu
 		{ 'folke/lazydev.nvim', ft = 'lua', opts = {} }, -- Neovim API for lua_ls
 	},
 	opts = {},
@@ -45,9 +41,8 @@ so `main = 'genja'` would run that file instead. With any other plugin manager,
 put the plugin and its dependencies on the runtimepath and call
 `require('genja.comps').setup({})` yourself.
 
-Nothing else may call `cmp.setup()` or the LSP setup: no `config` on the
-nvim-cmp and nvim-lspconfig specs. Without `require('genja.comps').setup()`,
-nvim-cmp has no sources and the menu never opens while you type.
+Nothing else may call `require('blink.cmp').setup()` or the LSP setup: no
+`config` or `opts` on the blink.cmp and nvim-lspconfig specs.
 
 ## Options
 
@@ -80,8 +75,10 @@ require('genja').setup({
 - `lsp` is merged over the defaults, so `lsp = { enabled = { php = true } }`
   turns PHP on and leaves the rest as it is.
 - `completion.features` replaces the default list. An entry is a file name in
-  `lua/genja/completion/`, or a `function(cmp, opts)` that adds to the table
-  passed to `cmp.setup()`.
+  `lua/genja/completion/`, or a `function(config)` that adds to the table
+  passed to `require('blink.cmp').setup()`.
+- `<CR>` takes the preselected first item (blink's default). The old nvim-cmp
+  behaviour (nothing preselected) is a commented-out line in `keymaps.lua`.
 - `lsp = false` or `completion = false` skips that half.
 - `lsp.diagnostics = false` leaves `vim.diagnostic.config()` alone.
 
@@ -316,7 +313,7 @@ frequencies.
 `:DictionaryUpdatePopular` downloads the current `popular.txt` with curl to
 `stdpath('data')/dict/en.txt`. Nothing is downloaded otherwise.
 
-`:CmpStatus` (from nvim-cmp) lists the sources active in the current buffer;
+`:checkhealth blink.cmp` lists the sources active in the current buffer;
 in a text or markdown file `dictionary` should be among them.
 
 ## LSP check
@@ -358,9 +355,9 @@ starts, and names the fix for each:
   the mason folder moves, so they show as a warning
   (`lua/genja/lsp/shim.lua`).
 
-## Alternatives to nvim-cmp
+## Alternatives
 
-Not used yet. Notes for a later comparison:
+nvim-cmp was used until 2026-10 (git tag `before-blink-2026-w44`). Not used:
 
 - **Built-in completion** (no plugin). On 0.11+, call
   `vim.lsp.completion.enable(true, client.id, buf, { autotrigger = true })` in
@@ -368,14 +365,7 @@ Not used yet. Notes for a later comparison:
   sources set by `'complete'`. Fewer dependencies, but you get only LSP items
   in the plain popup menu. Buffer words, file paths, command-line completion
   and lazydev would have to be rebuilt on `'complete'`, and the
-  `function(cmp, opts)` feature files would not apply.
-- **[blink.cmp](https://github.com/saghen/blink.cmp)**. It is fast (a Rust
-  fuzzy matcher), opens the menu as you type by default, has LSP, path,
-  buffer, snippet and command-line sources built in, and lazydev ships a
-  source for it. Switching means rewriting `lua/genja/completion/*`, because
-  the feature files fill in an nvim-cmp `setup()` table. The LSP half only
-  needs `require('blink.cmp').get_lsp_capabilities()` in place of
-  `cmp_nvim_lsp`.
+  `function(config)` feature files would not apply.
 
 ## Check that it works
 

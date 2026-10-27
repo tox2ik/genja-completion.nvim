@@ -1,6 +1,6 @@
 -- Completion from language servers.
--- The matching client capabilities are set in lua/genja/lsp/init.lua.
+-- The client capabilities are set in lua/genja/lsp/init.lua.
 ---@type genja.completion.Feature
-return function(_, opts)
-	table.insert(opts.sources, { name = 'nvim_lsp', group_index = 1 })
+return function(config)
+	table.insert(config.sources.default, 'lsp')
 end
