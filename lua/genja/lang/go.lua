@@ -30,14 +30,22 @@
 local SRC = 'lang/go.lua: '
 local SAVE_TIMEOUT = 1000 -- ms per request; on timeout the file is saved as is
 
-local norm = function(p) return vim.fs.normalize(p):lower() end
+---@param p string
+---@return string
+local function norm(p)
+	return vim.fs.normalize(p):lower()
+end
 
 ---Directories gopls should not get its own root in.
 ---@return string[]
 local function go_lib_dirs()
 	local dirs = {}
-	local gopath = vim.env.GOPATH and vim.split(vim.env.GOPATH, vim.fn.has('win32') == 1 and ';' or ':')[1]
-		or vim.fs.joinpath(vim.uv.os_homedir(), 'go')
+	-- first GOPATH entry, else ~/go
+	local gopath = vim.fs.joinpath(vim.uv.os_homedir(), 'go')
+	if vim.env.GOPATH then
+		local sep = (vim.fn.has('win32') == 1 and ';' or ':')
+		gopath = vim.split(vim.env.GOPATH, sep)[1]
+	end
 	table.insert(dirs, vim.env.GOMODCACHE or vim.fs.joinpath(gopath, 'pkg', 'mod'))
 	if vim.env.GOROOT then
 		table.insert(dirs, vim.env.GOROOT)

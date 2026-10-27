@@ -16,8 +16,11 @@ local SRC = 'genja/php_docparams.lua: '
 
 local M = {}
 
+---@param node TSNode?
+---@param buf integer
+---@return string?
 local function text(node, buf)
-	return node and vim.treesitter.get_node_text(node, buf) or nil
+	return (node and vim.treesitter.get_node_text(node, buf) or nil)
 end
 
 ---Docblock type for a parameter without a declared type, from its default value.
@@ -31,7 +34,7 @@ local function guess_type(default)
 		boolean = 'bool',
 		array_creation_expression = 'array',
 	}
-	return default and kinds[default:type()] or 'mixed'
+	return (default and kinds[default:type()] or 'mixed')
 end
 
 ---The parameters of a function or method node as { type, name } pairs.
@@ -119,6 +122,41 @@ local function return_type(fn, buf)
 	return found or 'void'
 end
 
+---A one-line docblock (`/** Text */`) as multi-line; other docblocks unchanged.
+---@param lines string[] docblock rows
+---@param indent string
+---@return string[]
+local function multi_line(lines, indent)
+	if #lines ~= 1 then
+		return lines
+	end
+	local one = lines[1]
+	local inner = vim.trim(one:match('/%*%*(.-)%*/') or '')
+	local out = { one:match('^(.-)/%*%*') .. '/**' }
+	if inner ~= '' then
+		table.insert(out, indent .. ' * ' .. inner)
+		table.insert(out, indent .. ' *')
+	end
+	table.insert(out, indent .. ' */')
+	return out
+end
+
+---Where new @param lines go: after the last @param, else before the first other tag, else before */.
+---@param lines string[] docblock rows
+---@return integer
+local function param_index(lines)
+	local first_tag = nil
+	local after_param = nil
+	for i, line in ipairs(lines) do
+		if line:find('@param', 1, true) then
+			after_param = i + 1
+		elseif not first_tag and line:find('^%s*%*%s*@') then
+			first_tag = i
+		end
+	end
+	return after_param or first_tag or #lines
+end
+
 ---Lines to write for fn: a replacement for its docblock rows, or a new docblock.
 ---@param fn TSNode
 ---@param buf integer
@@ -138,10 +176,7 @@ local function edit_for(fn, buf)
 		if #params == 0 and not ret then
 			return
 		end
-		local lines = { indent .. '/**' }
-		for _, p in ipairs(params) do
-			table.insert(lines, param_line(p))
-		end
+		local lines = vim.list_extend({ indent .. '/**' }, vim.tbl_map(param_line, params))
 		if return_line then
 			table.insert(lines, return_line)
 		end
@@ -164,35 +199,8 @@ local function edit_for(fn, buf)
 		return
 	end
 
-	-- A one-line docblock (`/** Text */`) becomes multi-line first.
-	if #lines == 1 then
-		local one = lines[1]
-		local inner = vim.trim(one:match('/%*%*(.-)%*/') or '')
-		local prefix = one:match('^(.-)/%*%*')
-		lines = { prefix .. '/**' }
-		if inner ~= '' then
-			table.insert(lines, indent .. ' * ' .. inner)
-			table.insert(lines, indent .. ' *')
-		end
-		table.insert(lines, indent .. ' */')
-	end
-
-	-- @param after the last @param, else before the first other tag, else before */.
-	local at
-	for i, line in ipairs(lines) do
-		if line:find('@param', 1, true) then
-			at = i + 1
-		end
-	end
-	if not at then
-		for i, line in ipairs(lines) do
-			if line:find('^%s*%*%s*@') then
-				at = i
-				break
-			end
-		end
-	end
-	at = at or #lines
+	lines = multi_line(lines, indent)
+	local at = param_index(lines)
 
 	local new = vim.tbl_map(param_line, missing)
 	for i = #new, 1, -1 do
@@ -211,7 +219,9 @@ end
 ---@param last integer?
 ---@return integer count functions changed
 function M.run(buf, first, last)
-	buf = buf == 0 and vim.api.nvim_get_current_buf() or buf
+	if buf == 0 then
+		buf = vim.api.nvim_get_current_buf()
+	end
 	local ok, parser = pcall(vim.treesitter.get_parser, buf, 'php')
 	if not ok or not parser then
 		vim.notify(SRC .. 'PhpDocParams: no treesitter php parser (:TSInstall php)', vim.log.levels.WARN)
@@ -250,7 +260,7 @@ function M.attach(buf)
 			first, last = cmd.line1 - 1, cmd.line2 - 1
 		end
 		local count = M.run(buf, first, last)
-		vim.notify((SRC .. 'PhpDocParams: updated %d function%s'):format(count, count == 1 and '' or 's'))
+		vim.notify((SRC .. 'PhpDocParams: updated %d function%s'):format(count, (count == 1 and '' or 's')))
 	end, { range = true, desc = 'Add missing @param and @return tags to every function and method' })
 end
 

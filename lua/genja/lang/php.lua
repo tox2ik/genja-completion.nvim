@@ -158,10 +158,10 @@ local function to_win(s)
 	end
 	local drive, rest = s:match('^file:///mnt/(%a)(/.*)$')
 	if not drive then
-		drive, rest = s:match('^file:///mnt/(%a)$'), ''
+		drive, rest = s:match('^file:///mnt/(%a)$'), '/'
 	end
 	if drive then
-		return 'file:///' .. drive:upper() .. ':' .. (rest ~= '' and rest or '/')
+		return 'file:///' .. drive:upper() .. ':' .. rest
 	end
 	return 'file:////wsl.localhost/' .. (distro and distro.name or '') .. s:sub(8)
 end
@@ -176,7 +176,7 @@ local text_keys = { text = true, newText = true, insertText = true, label = true
 ---@return any
 local function map(v, fn, key)
 	if type(v) == 'string' then
-		return text_keys[key] and v or fn(v)
+		return (text_keys[key] and v or fn(v))
 	end
 	if type(v) ~= 'table' then
 		return v
@@ -208,8 +208,11 @@ local function install()
 	f:close()
 	installing = true
 	local log = vim.fs.joinpath(vim.fn.stdpath('log'), 'phpactor-wsl-install.log')
-	vim.notify((SRC .. 'installing PHP and phpactor in WSL%s ...'):format(
-		opts.distro and (' (' .. opts.distro .. ')') or ''))
+	local where = ''
+	if opts.distro then
+		where = ' (' .. opts.distro .. ')'
+	end
+	vim.notify(SRC .. 'installing PHP and phpactor in WSL' .. where .. ' ...')
 	vim.system(wsl({ '-e', 'sh', '-s' }, 'root'), { stdin = script, env = wsl_env, text = true },
 		vim.schedule_wrap(function(out)
 			installing = false
@@ -295,13 +298,13 @@ end
 local function bin(root, name)
 	local vendored = vim.fs.joinpath(root, 'vendor', 'bin', name)
 	if vim.uv.fs_stat(vendored) then
-		return is_win and to_wsl(vendored) or vendored
+		return (is_win and to_wsl(vendored) or vendored)
 	end
 	if is_win then
 		return distro and distro.bins[name]
 	end
 	local found = vim.fn.exepath(name)
-	return found ~= '' and found or nil
+	return (found ~= '' and found or nil)
 end
 
 ---@param root string
@@ -327,7 +330,11 @@ local function project_options(root)
 		download(stubs_url, stubs_file, 'WordPress stubs')
 		if vim.uv.fs_stat(stubs_file) then
 			-- This replaces phpactor's own stub path, so keep PHP's stubs.
-			options['indexer.stub_paths'] = is_win and { wsl_stubs, to_wsl(stubs_dir) } or { '%application_root%/vendor/jetbrains/phpstorm-stubs', stubs_dir }
+			if is_win then
+				options['indexer.stub_paths'] = { wsl_stubs, to_wsl(stubs_dir) }
+			else
+				options['indexer.stub_paths'] = { '%application_root%/vendor/jetbrains/phpstorm-stubs', stubs_dir }
+			end
 			-- The stubs are one 6 MB file; the default skips anything over 1 MB.
 			options['indexer.max_filesize_to_index'] = 10000000
 		end
@@ -389,10 +396,16 @@ local function pint_on_save(root, buf)
 		group = vim.api.nvim_create_augroup('genja_pint_' .. buf, { clear = true }),
 		callback = function()
 			local file = vim.api.nvim_buf_get_name(buf)
-			local cmd = is_win and wsl({ '--cd', to_wsl(root), '-e', pint, to_wsl(file) }) or { pint, file }
-			vim.system(cmd, { cwd = not is_win and root or nil, env = wsl_env, text = true }, vim.schedule_wrap(function(out)
+			local cmd = { pint, file }
+			local cwd = root
+			if is_win then
+				cmd = wsl({ '--cd', to_wsl(root), '-e', pint, to_wsl(file) })
+				cwd = nil
+			end
+			vim.system(cmd, { cwd = cwd, env = wsl_env, text = true }, vim.schedule_wrap(function(out)
 				if out.code ~= 0 then
-					vim.notify(SRC .. 'pint: ' .. clean(out.stderr ~= '' and out.stderr or out.stdout), vim.log.levels.WARN)
+					local msg = (out.stderr ~= '' and out.stderr or out.stdout)
+					vim.notify(SRC .. 'pint: ' .. clean(msg), vim.log.levels.WARN)
 				elseif vim.api.nvim_buf_is_valid(buf) and not vim.bo[buf].modified then
 					vim.api.nvim_buf_call(buf, function()
 						local view = vim.fn.winsaveview()
@@ -460,6 +473,13 @@ local function phpactor_cmd()
 	end
 end
 
+-- Windows: Mason's Windows builds, which phpactor inside WSL can't run, are only
+-- installed for the other systems.
+local tools = { 'phpstan', 'php-cs-fixer', 'phpcs', 'pint', 'php-debug-adapter' }
+if is_win then
+	tools = { 'php-debug-adapter' }
+end
+
 ---@type genja.Lang
 return {
 	servers = {
@@ -502,7 +522,5 @@ return {
 			workspace_required = true,
 		},
 	},
-	-- Windows: these are Mason's Windows builds, which phpactor inside WSL can't
-	-- run; they are only installed for the other systems.
-	tools = is_win and { 'php-debug-adapter' } or { 'phpstan', 'php-cs-fixer', 'phpcs', 'pint', 'php-debug-adapter' },
+	tools = tools,
 }

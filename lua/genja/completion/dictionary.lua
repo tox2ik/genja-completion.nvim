@@ -32,7 +32,10 @@ local CHUNK = 2000 -- words indexed per main-loop step
 ---@return string
 local function word_of(line)
 	-- .add files: '#' comments, word/flags, and word/! for words removed with zw
-	return not line:find('/!') and vim.trim(line):match('^[^#/]*') or ''
+	if line:find('/!') then
+		return ''
+	end
+	return vim.trim(line):match('^[^#/]*')
 end
 
 ---@param entry genja.completion.DictEntry
@@ -92,7 +95,7 @@ end
 ---@return table<string, string[]>
 local function load(file)
 	local stat = vim.uv.fs_stat(file)
-	local mtime = stat and stat.mtime.sec or 0
+	local mtime = (stat and stat.mtime.sec or 0)
 	if cache[file] and cache[file].mtime == mtime then
 		return cache[file].index
 	end
@@ -104,19 +107,23 @@ local function load(file)
 	return entry.index
 end
 
+---Comma-separated file option as a list, empty items dropped.
+---@param value string
+---@return string[]
+local function file_list(value)
+	return vim.split(value, ',', { plain = true, trimempty = true })
+end
+
 ---@param bufnr integer
 ---@return string[]
 local function files(bufnr)
-	local list = vim.tbl_filter(function(f)
-		return f ~= ''
-	end, vim.split(vim.bo[bufnr].dictionary, ',', { plain = true }))
-	if #list == 0 then
-		list = vim.uv.fs_stat(DOWNLOADED) and { DOWNLOADED }
-			or vim.api.nvim_get_runtime_file('dict/en.txt', false)
+	local list = file_list(vim.bo[bufnr].dictionary)
+	if #list == 0 and vim.uv.fs_stat(DOWNLOADED) then
+		list = { DOWNLOADED }
+	elseif #list == 0 then
+		list = vim.api.nvim_get_runtime_file('dict/en.txt', false)
 	end
-	local spell = vim.tbl_filter(function(f)
-		return f ~= ''
-	end, vim.split(vim.bo[bufnr].spellfile, ',', { plain = true }))
+	local spell = file_list(vim.bo[bufnr].spellfile)
 	if #spell == 0 then
 		spell = vim.api.nvim_get_runtime_file('spell/*.add', true)
 	end
@@ -145,7 +152,10 @@ function source:complete(params, callback)
 	for _, file in ipairs(files(params.context.bufnr)) do
 		for _, word in ipairs(load(file)[prefix:sub(1, 2)] or {}) do
 			if word:lower():sub(1, #prefix) == prefix then
-				local label = upper and word:sub(1, 1):upper() .. word:sub(2) or word
+				local label = word
+				if upper then
+					label = word:sub(1, 1):upper() .. word:sub(2)
+				end
 				if not seen[label] then
 					seen[label] = true
 					table.insert(items, { label = label, kind = kind })

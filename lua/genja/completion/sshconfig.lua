@@ -221,25 +221,22 @@ function source:complete(params, callback)
 	end
 
 	local kind = require('cmp').lsp.CompletionItemKind
-	local items = {}
+	---@param words string[]
+	---@param k integer
+	local function items(words, k)
+		return vim.tbl_map(function(word) return { label = word, kind = k } end, words)
+	end
 	if before:match('^%s*%w*$') then
-		for _, word in ipairs(spec.keywords) do
-			table.insert(items, { label = word, kind = kind.Property })
-		end
-		return callback({ items = items })
+		return callback({ items = items(spec.keywords, kind.Property) })
 	end
 
 	-- Option, then whitespace and/or '=', then its arguments.
-	local option = before:match('^%s*(%w+)[%s=]')
-	option = option and option:lower()
-	local values = option and spec.values[option]
-	if not values and option and QUERY[option] then
+	local option = (before:match('^%s*(%w+)[%s=]') or ''):lower()
+	local values = spec.values[option]
+	if not values and QUERY[option] then
 		values = ssh_query(QUERY[option])
 	end
-	for _, word in ipairs(values or {}) do
-		table.insert(items, { label = word, kind = kind.EnumMember })
-	end
-	callback({ items = items })
+	callback({ items = items(values or {}, kind.EnumMember) })
 end
 
 ---@type genja.completion.Feature

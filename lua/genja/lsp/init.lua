@@ -49,7 +49,7 @@ local function load_lang(name)
 		return lang
 	end
 	vim.notify(
-		(SRC .. 'genja.lang.%s: %s'):format(name, ok and 'must return a table' or lang),
+		(SRC .. 'genja.lang.%s: %s'):format(name, (ok and 'must return a table' or lang)),
 		vim.log.levels.ERROR
 	)
 end
@@ -91,7 +91,7 @@ local function collect(config, apply)
 	-- same server their overrides always merge in the same order.
 	local servers, tools = {}, {} -- sets
 	for name, on in vim.spairs(config.enabled) do
-		local lang = on and load_lang(name) or {}
+		local lang = (on and load_lang(name) or {})
 		for server, overrides in pairs(lang.servers or {}) do
 			if apply then
 				vim.lsp.config(server, overrides)
@@ -138,8 +138,7 @@ end
 ---For lsp/installed.lua: mason-lspconfig enables a server only once it is installed.
 ---@return string[]
 function M.servers()
-	local servers = collect(M.get())
-	return servers
+	return (collect(M.get())) -- first result only
 end
 
 ---@param opts? genja.lsp.Opts
@@ -160,11 +159,8 @@ function M.setup(opts)
 
 	-- g:genja_lsp_no_install: enable what's there, install nothing (test runs start and kill
 	-- many nvims; an install cut off halfway leaves mason/staging behind)
-	local install = vim.g.genja_lsp_no_install ~= true
-	local ensure = {}
-	if install then
-		ensure = servers
-	end
+	local install = (vim.g.genja_lsp_no_install ~= true)
+	local ensure = (install and servers or {})
 
 	require('mason').setup(M.config.mason)
 	require('mason-lspconfig').setup({
