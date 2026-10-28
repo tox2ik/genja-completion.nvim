@@ -1,4 +1,4 @@
--- Diagnostics limit test (lua/genja/diag-limit.lua): 7 lua_ls warnings
+-- Diagnostics limit test (lua/genja/ext/diag-limit.lua): 7 lua_ls warnings
 -- (undefined-global), one per line. Expected: 3 drawn, ]d visits all 7.
 print(undefined_one)
 print(undefined_two)
