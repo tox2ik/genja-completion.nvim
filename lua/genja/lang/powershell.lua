@@ -8,7 +8,16 @@ return {
 				"-NoLogo",
 				"-NoProfile",
 				"-NonInteractive",
-			}
+			},
+			settings = {
+				powershell = {
+					-- section and keys as read by the installed PSES (its dll strings)
+					rename = {
+						acceptDisclaimer = true, -- skip the per-session "limited rename" prompt
+						createParameterAlias = false, -- no [Alias('oldName')] on renamed parameters
+					},
+				},
+			},
 		},
 	}
 }
