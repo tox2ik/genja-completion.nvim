@@ -130,4 +130,5 @@ code or history: confirm or delete. `Hint:` is a working note for Claude.
 - The dictionary index is built on the first text/markdown `FileType`: async read, then chunked indexing. Nothing is read at startup.
 - `:DictionaryUpdatePopular` downloads into `stdpath('data')`; `make update-dict` refreshes the shipped list from the URL in `dictionary.lua`.
 - Hint: the own sources need no extra plugins; keep it that way.
-- Command line (`: / ?`, `completion/cmdline.lua`): `<Tab>` next, `<S-Tab>` previous (both open the menu), `<C-j>`/`<C-k>` next/previous while the menu is open, `<Down>`/`<Up>` always history (closes the menu).
+- Command line (`: / ?`, `completion/cmdline.lua`): `<Tab>` next, `<S-Tab>` previous (both open the menu), `<C-j>`/`<C-k>` and `<Down>`/`<Up>` next/previous while the menu is open; with no menu, `<Down>`/`<Up>` recall history. `<M-x>` (like `<C-e>`) closes the menu.
+    - Being tried out (2026-10-28): `<Down>`/`<Up>` in the menu. Before, they always recalled history and closed the menu; `:e<Up>` (history filtered by prefix) now needs the menu closed first. Ask before building on it.
