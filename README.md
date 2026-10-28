@@ -92,6 +92,15 @@ require('genja.lsp').get()          -- the merged settings table
 require('genja.lsp').enabled('php') -- true when PHP is turned on
 ```
 
+`:EnableLang [-on|-off] [-save] <lang>` (or `require('genja.lsp').set_lang(name, on, save)`)
+turns a language on or off for the session. On: its servers are configured,
+installed when missing, and attach to open buffers. Off: its servers stop,
+unless another language that is on uses them. `-save` also writes
+`<lang> = true|false` into the `enabled` table of `local.lua` (created if
+missing); comments are kept, and nothing is written unless the edited file
+loads and gives that value. Make, gitconfig and sshconfig diagnostics
+start in buffers opened afterwards (or after `:e`).
+
 ## Languages
 
 | key          | servers                  | extra tools       |
