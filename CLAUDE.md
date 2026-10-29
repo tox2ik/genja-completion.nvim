@@ -56,7 +56,7 @@ nvim --headless "C:/path/to/file.ext" +'lua vim.defer_fn(function()
 
 ## Conventions
 
-- Tabs, single quotes, short comments that explain why.
+- Spaces (4), single quotes, short comments that explain why.
 - Commits: group by feature, no Claude/Co-Authored-By attribution.
 - The user's config tree often has unrelated uncommitted changes; leave them alone.
 
