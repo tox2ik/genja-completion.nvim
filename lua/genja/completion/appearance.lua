@@ -52,11 +52,14 @@ end
 ---inserted, not replaced, so blink's highlight extmarks move with it.
 ---@param buf integer
 local function pad_docs(buf)
+	-- blink's renderer sets the buffer back to not modifiable when it is done
+	vim.bo[buf].modifiable = true
 	local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
 	for i, line in ipairs(lines) do
 		vim.api.nvim_buf_set_text(buf, i - 1, #line, i - 1, #line, { ' ' })
 		vim.api.nvim_buf_set_text(buf, i - 1, 0, i - 1, 0, { ' ' })
 	end
+	vim.bo[buf].modifiable = false
 end
 
 ---@type genja.completion.Feature
