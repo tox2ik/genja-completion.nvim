@@ -132,4 +132,5 @@ code or history: confirm or delete. `Hint:` is a working note for Claude.
 - Hint: the own sources need no extra plugins; keep it that way.
 - `minuet` (minuet-ai.nvim, ollama) is a feature in the config's `lua/genja/completion/minuet.lua`, not here: it needs an extra plugin. Answers only `<M-y>` unless `:Minuet blink toggle`.
 - Command line (`: / ?`, `completion/cmdline.lua`): `<Tab>` next, `<S-Tab>` previous (both open the menu), `<C-j>`/`<C-k>` and `<Down>`/`<Up>` next/previous while the menu is open; with no menu, `<Down>`/`<Up>` recall history. `<M-x>` (like `<C-e>`) closes the menu.
+    - Nothing is preselected (`completion.list.selection.preselect = false`): the first `<Tab>` on the open menu inserts item 1, `:term<Tab>` gives `:terminal`. The cmdline preset preselected item 1, so `<Tab>` went to item 2.
     - Being tried out (2026-10-28): `<Down>`/`<Up>` in the menu. Before, they always recalled history and closed the menu; `:e<Up>` (history filtered by prefix) now needs the menu closed first. Ask before building on it.
