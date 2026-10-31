@@ -1,9 +1,9 @@
 -- Command-line completion.
 --   :      Ex commands and their arguments (file names, :help topics): blink's cmdline source
 --   / ?    words from the buffer
--- <Tab>/<S-Tab> open the menu and walk it (blink's cmdline preset); <C-j>/<C-k> walk it while it is open.
+-- <Tab>/<S-Tab> open the menu and walk it (blink's cmdline preset); <M-j>/<M-k> walk it while it is open.
 -- <Up>/<Down> are history, as in plain Vim (prefix filter included), even with the menu open; once
--- <Tab>, <S-Tab>, <C-j> or <C-k> moved in the menu, they walk it too, until another key is typed.
+-- <Tab>, <S-Tab>, <M-j> or <M-k> moved in the menu, they walk it too, until another key is typed.
 -- <M-x> or <C-e> closes the menu.
 
 -- true after a walk key, until another key is typed or a new command line starts
@@ -12,8 +12,8 @@ local walking = false
 local WALK_KEYS = {
     [vim.keycode('<Tab>')] = true,
     [vim.keycode('<S-Tab>')] = true,
-    [vim.keycode('<C-j>')] = true,
-    [vim.keycode('<C-k>')] = true,
+    [vim.keycode('<M-j>')] = true,
+    [vim.keycode('<M-k>')] = true,
     [vim.keycode('<Up>')] = true,
     [vim.keycode('<Down>')] = true,
 }
@@ -76,8 +76,8 @@ local function feature(config)
                 function(cmp) return cmp.show_and_insert_or_accept_single({ initial_selected_item_idx = -1 }) end,
                 'select_prev',
             },
-            ['<C-j>'] = { mark, 'select_next', 'fallback' },
-            ['<C-k>'] = { mark, 'select_prev', 'fallback' },
+            ['<M-j>'] = { mark, 'select_next', 'fallback' },
+            ['<M-k>'] = { mark, 'select_prev', 'fallback' },
             ['<Down>'] = { history_or('select_next'), 'fallback' },
             ['<Up>'] = { history_or('select_prev'), 'fallback' },
             ['<M-x>'] = { 'cancel', 'fallback' }, -- as <C-e>: close the menu, undo the inserted item
