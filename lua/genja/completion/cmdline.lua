@@ -73,6 +73,15 @@ local function select_first(cmp)
     return true
 end
 
+---Open the menu by itself, except on a one-char Ex command line (:w, :q).
+---@return boolean
+local function auto_show()
+    if vim.fn.getcmdtype() == ':' and #vim.fn.getcmdline() == 1 then
+        return false
+    end
+    return true
+end
+
 ---For tests: is <Up>/<Down> walking the menu now?
 ---@return boolean
 local function is_walking()
@@ -117,7 +126,9 @@ local function feature(config)
             return {}
         end,
         completion = {
-            menu = { auto_show = true }, -- as with nvim-cmp's cmdline setup
+            -- opens by itself, as with nvim-cmp's cmdline setup; not on one-char commands (:w, :q),
+            -- so it doesn't flash on them
+            menu = { auto_show = auto_show },
             -- no preselect: the menu opens with nothing selected, so the first <Tab> inserts item 1
             -- (:term<Tab> gives :terminal); the preset preselects 1 and <Tab> went to item 2
             list = { selection = { preselect = false, auto_insert = true } },
