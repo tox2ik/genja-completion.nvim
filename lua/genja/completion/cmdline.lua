@@ -1,9 +1,10 @@
 -- Command-line completion.
 --   :      Ex commands and their arguments (file names, :help topics): blink's cmdline source
 --   / ?    words from the buffer
--- <Tab>/<S-Tab> open the menu and walk it (blink's cmdline preset); <M-j>/<M-k> walk it while it is open.
+-- <Tab>/<S-Tab> open the menu and walk it (blink's cmdline preset); <M-j>/<M-k> walk it while it is open,
+-- <M-f> as <M-k>, <M-w> to the first item, <M-s> 3 items down.
 -- <Up>/<Down> are history, as in plain Vim (prefix filter included), even with the menu open; once
--- <Tab>, <S-Tab>, <M-j> or <M-k> moved in the menu, they walk it too, until another key is typed.
+-- <Tab>, <S-Tab> or one of the <M-…> keys moved in the menu, they walk it too, until another key is typed.
 -- <M-x> or <C-e> closes the menu.
 
 -- true after a walk key, until another key is typed or a new command line starts
@@ -14,6 +15,9 @@ local WALK_KEYS = {
     [vim.keycode('<S-Tab>')] = true,
     [vim.keycode('<M-j>')] = true,
     [vim.keycode('<M-k>')] = true,
+    [vim.keycode('<M-f>')] = true,
+    [vim.keycode('<M-w>')] = true,
+    [vim.keycode('<M-s>')] = true,
     [vim.keycode('<Up>')] = true,
     [vim.keycode('<Down>')] = true,
 }
@@ -56,6 +60,19 @@ local function history_or(select)
     end
 end
 
+---Select the first item of the open menu; blink has no command for it.
+---@param cmp blink.cmp.API
+---@return boolean|nil
+local function select_first(cmp)
+    if not cmp.is_menu_visible() then
+        return
+    end
+    vim.schedule(function()
+        require('blink.cmp.completion.list').select(1)
+    end)
+    return true
+end
+
 ---For tests: is <Up>/<Down> walking the menu now?
 ---@return boolean
 local function is_walking()
@@ -78,6 +95,13 @@ local function feature(config)
             },
             ['<M-j>'] = { mark, 'select_next', 'fallback' },
             ['<M-k>'] = { mark, 'select_prev', 'fallback' },
+            ['<M-f>'] = { mark, 'select_prev', 'fallback' }, -- the other way from <M-j>
+            ['<M-w>'] = { mark, select_first, 'fallback' },
+            ['<M-s>'] = {
+                mark,
+                function(cmp) return cmp.select_next({ count = 3 }) end,
+                'fallback',
+            },
             ['<Down>'] = { history_or('select_next'), 'fallback' },
             ['<Up>'] = { history_or('select_prev'), 'fallback' },
             ['<M-x>'] = { 'cancel', 'fallback' }, -- as <C-e>: close the menu, undo the inserted item
