@@ -37,6 +37,26 @@ local function set_colours()
 	if bg then
 		vim.api.nvim_set_hl(0, 'BlinkCmpScrollBarGutter', { bg = darken(bg, 0.4) })
 	end
+	-- documentation: the menu's colours; the frame in PmenuExtra's colour on that background
+	local fg = menu.fg
+	if menu.reverse then
+		fg = menu.bg
+	end
+	vim.api.nvim_set_hl(0, 'BlinkCmpDoc', { fg = fg, bg = bg })
+	vim.api.nvim_set_hl(0, 'BlinkCmpDocBorder', { fg = extra.fg, bg = bg })
+	vim.api.nvim_set_hl(0, 'BlinkCmpDocSeparator', { fg = extra.fg, bg = bg })
+end
+
+---One space of padding left and right of each documentation line. blink has no padding
+---option; it sizes the window from the line widths, so the spaces widen it too. Text is
+---inserted, not replaced, so blink's highlight extmarks move with it.
+---@param buf integer
+local function pad_docs(buf)
+	local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+	for i, line in ipairs(lines) do
+		vim.api.nvim_buf_set_text(buf, i - 1, #line, i - 1, #line, { ' ' })
+		vim.api.nvim_buf_set_text(buf, i - 1, 0, i - 1, 0, { ' ' })
+	end
 end
 
 ---@type genja.completion.Feature
@@ -56,7 +76,15 @@ return function(config)
 	}
 	config.completion.documentation = {
 		auto_show = true, -- nvim-cmp showed it for the selected item
-		window = { winblend = 4 },
+		window = {
+			winblend = 4,
+			border = 'rounded', -- blink turns off the doc scrollbar gutter with a border
+			winhighlight = 'Normal:BlinkCmpDoc,FloatBorder:BlinkCmpDocBorder,EndOfBuffer:BlinkCmpDoc',
+		},
+		draw = function(opts)
+			opts.default_implementation()
+			pad_docs(opts.window:get_buf())
+		end,
 	}
 	config.appearance = { nerd_font_variant = 'mono' }
 end
