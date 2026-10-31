@@ -82,8 +82,8 @@ return function(config)
 		window = {
 			-- 0 solid .. 100 clear; 4 is barely see-through, same as the menu (needs termguicolors)
 			winblend = 4,
-			-- ╭─╮ frame in FloatBorder, mapped to BlinkCmpDocBorder below;
-			-- other styles: 'none', 'single', 'double', 'solid', 'shadow', or 8 chars; unset uses 'winborder'.
+			-- 'shadow': a drop shadow right and below, in FloatShadow/FloatShadowThrough, not FloatBorder;
+			-- other styles: 'none', 'single', 'double', 'rounded', 'solid', or 8 chars; unset uses 'winborder'.
 			-- With a border blink draws only the scrollbar thumb, no gutter (BlinkCmpScrollBarGutter shows in the menu only)
 			border = 'shadow', -- 'rounded',
 			winhighlight = 'Normal:BlinkCmpDoc,FloatBorder:BlinkCmpDocBorder,EndOfBuffer:BlinkCmpDoc',
