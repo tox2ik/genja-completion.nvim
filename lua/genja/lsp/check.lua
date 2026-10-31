@@ -1,9 +1,9 @@
 -- Simple LSP check: is a language server attached to the current buffer?
 --
---   :CheckHealthLspSimple        opens a float with the answer
---   <Plug>CheckHealthLspSimple   the same, for a key of your choice:
+--   :CheckHealthSimpleLsp        opens a float with the answer
+--   <Plug>CheckHealthSimpleLsp   the same, for a key of your choice:
 --
---     vim.keymap.set('n', '<leader>ch', '<Plug>CheckHealthLspSimple')
+--     vim.keymap.set('n', '<leader>ch', '<Plug>CheckHealthSimpleLsp')
 --
 -- Both are always defined by require('genja.comps').setup(), also with
 -- lsp = false. There is no option to turn them off.
@@ -171,13 +171,13 @@ function M.open()
 	show(M.check())
 end
 
----Define :CheckHealthLspSimple and <Plug>CheckHealthLspSimple.
+---Define :CheckHealthSimpleLsp and <Plug>CheckHealthSimpleLsp.
 function M.setup()
 	local desc = 'Confirm an LSP server is attached to the current buffer'
-	vim.api.nvim_create_user_command('CheckHealthLspSimple', function()
+	vim.api.nvim_create_user_command('CheckHealthSimpleLsp', function()
 		M.open()
 	end, { desc = desc })
-	vim.keymap.set('n', '<Plug>CheckHealthLspSimple', M.open, { desc = desc })
+	vim.keymap.set('n', '<Plug>CheckHealthSimpleLsp', M.open, { desc = desc })
 end
 
 return M

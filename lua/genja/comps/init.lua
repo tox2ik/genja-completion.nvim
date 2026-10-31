@@ -7,7 +7,7 @@
 --
 -- Both keys are optional. Set one to false to skip that half.
 --
--- :CheckHealthLspSimple and <Plug>CheckHealthLspSimple are always defined;
+-- :CheckHealthSimpleLsp and <Plug>CheckHealthSimpleLsp are always defined;
 -- see lua/genja/lsp/check.lua. Filetypes in lua/genja/ft/ are always added.
 
 local SRC = 'comps/init.lua: '

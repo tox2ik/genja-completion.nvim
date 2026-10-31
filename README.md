@@ -327,17 +327,17 @@ in a text or markdown file `dictionary` should be among them.
 
 ## LSP check
 
-`:CheckHealthLspSimple` opens a float that confirms a language server is
+`:CheckHealthSimpleLsp` opens a float that confirms a language server is
 attached to the current buffer. It shows PASS or FAIL, the file and its
 detected language, and each server with its languages and workspace folders.
 `q` or `<Esc>` closes it. The command is always defined; there is no option to
 turn it off.
 
-The same action is available as `<Plug>CheckHealthLspSimple`. No key is bound
+The same action is available as `<Plug>CheckHealthSimpleLsp`. No key is bound
 by default; bind one yourself, for example:
 
 ```lua
-vim.keymap.set('n', '<leader>ch', '<Plug>CheckHealthLspSimple', { desc = 'LSP check' })
+vim.keymap.set('n', '<leader>ch', '<Plug>CheckHealthSimpleLsp', { desc = 'LSP check' })
 ```
 
 The code is in `lua/genja/lsp/check.lua`.
