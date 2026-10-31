@@ -73,6 +73,7 @@ local function select_first(cmp)
     return true
 end
 
+
 ---Open the menu by itself, except on a one-char Ex command line (:w, :q).
 ---@return boolean
 local function auto_show()
