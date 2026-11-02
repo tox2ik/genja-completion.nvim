@@ -28,6 +28,7 @@ local M = {}
 ---@field incomplete? boolean ask again on each typed character (the source filters itself)
 ---@field enabled? fun(): boolean
 ---@field provider? table more blink provider options (min_keyword_length, max_items, ...)
+---@field only? boolean registered as a provider but in no list; the feature picks it per context (sources function)
 
 ---Item kinds, as blink numbers them (the LSP ones).
 M.kind = require('blink.cmp.types').CompletionItemKind
@@ -98,6 +99,9 @@ function M.register(config, id, spec)
 		fallbacks = spec.fallbacks,
 	}, spec.provider or {})
 
+	if spec.only then
+		return
+	end
 	if not spec.filetypes then
 		table.insert(config.sources.default, id)
 		return

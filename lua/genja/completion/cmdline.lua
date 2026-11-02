@@ -7,6 +7,8 @@
 -- <Tab>, <S-Tab> or one of the <M-…> keys moved in the menu, they walk it too, until another key is typed.
 -- <M-x> or <C-e> closes the menu.
 
+local shellcmd = require('genja.completion.shellcmd')
+
 -- true after a walk key, until another key is typed or a new command line starts
 local walking = false
 
@@ -92,6 +94,7 @@ end
 ---@type genja.completion.Feature
 local function feature(config)
     watch_keys()
+    shellcmd.register(config)
 
     ---@type blink.cmp.CmdlineConfigPartial
     config.cmdline = {
@@ -120,6 +123,10 @@ local function feature(config)
             local type = vim.fn.getcmdtype()
             if type == '/' or type == '?' then
                 return { 'buffer' }
+            end
+            -- shell names after `!` or `:terminal` come from the disk cache, not the $PATH scan
+            if shellcmd.active() then
+                return { 'shellcmd' }
             end
             if type == ':' or type == '@' then
                 return { 'cmdline' }
