@@ -15,7 +15,10 @@ Read README.md for the user-facing picture.
     - `lsp/installed.lua`: servers the enabled languages want (`require('genja.lsp').servers()`) whose cmd is not executable. mason-lspconfig only enables installed servers, so a missing one is otherwise silent. Case `mason: servers installed` (needs the child).
     - `lsp/venv.lua`: mason Python venvs whose base Python is gone (autotools_ls exit 103). Case `mason: python-venv`.
     - `lsp/shim.lua`: launchers in `mason/bin` whose target is gone. Case `mason: shims`.
-    - `venv.lua` and `shim.lua` have no requires: the tests load them with `dofile`, without a child.
+    - `lsp/receipt.lua`: package folders without `mason-receipt.json`, an install or update cut off because a running server locked the old folder on Windows (mason counts the folder as installed). Case `mason: receipts`.
+    - `venv.lua`, `shim.lua` and `receipt.lua` have no requires: the tests load them with `dofile`, without a child.
+- Cut-off installs repair themselves: opening a file of a filetype in `REPAIR_ON_OPEN` (`lsp/init.lua`; today lua -> lua-language-server) stats the receipt; if missing, mason reinstalls with `force` in the background, then `vim.lsp.enable()` attaches the open buffers. Silent; only a failed repair notifies. Once per package per session; not with `g:genja_lsp_no_install`.
+- lua_ls logs to `stdpath('log')/lua_ls` (`--logpath`), not into its install folder, so the open log doesn't block mason's update.
 - `lua/genja/lang/<name>.lua`: one language each, returns
   `{ servers = { <lspconfig name> = overrides }, tools = { <mason pkg> } }`.
 - `lua/genja/ft/<ft>.lua`: `vim.filetype.add()` specs.

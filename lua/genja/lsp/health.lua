@@ -2,6 +2,7 @@
 local installed = require('genja.lsp.installed')
 local venv = require('genja.lsp.venv')
 local shim = require('genja.lsp.shim')
+local receipt = require('genja.lsp.receipt')
 
 local M = {}
 
@@ -69,10 +70,25 @@ local function check_shims()
 	vim.health.ok(('%d of %d launchers start an existing file'):format(good, #list))
 end
 
+local function check_receipts()
+	vim.health.start('mason packages (' .. receipt.root_dir() .. '/packages)')
+	local list = receipt.list()
+	if #list == 0 then
+		vim.health.ok('every package folder has its mason-receipt.json')
+		return
+	end
+	for _, b in ipairs(list) do
+		local staged = (b.staged and '; the new version is still in mason/staging' or '')
+		vim.health.error(b.name .. ': no mason-receipt.json, the install or update was cut off' .. staged,
+			{ receipt.fix(b) })
+	end
+end
+
 function M.check()
 	check_servers()
 	check_venvs()
 	check_shims()
+	check_receipts()
 end
 
 return M

@@ -74,6 +74,10 @@ return {
 	servers = {
 
 		lua_ls = {
+			-- lua_ls logs into its own install folder by default; an open log there keeps mason
+			-- from deleting that folder on Windows and cuts the next update off (lsp/receipt.lua)
+			cmd = { 'lua-language-server', '--logpath=' .. vim.fs.joinpath(vim.fn.stdpath('log'), 'lua_ls') },
+
 			-- Same markers as nvim-lspconfig, but a root at the home folder (a stray
 			-- .git or .luarc.json in C:\Users\<me>) is dropped: lua_ls then runs in
 			-- single-file mode instead of scanning the whole profile.

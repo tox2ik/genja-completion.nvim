@@ -81,6 +81,41 @@ local function install_tools(tools)
 	end))
 end
 
+-- filetype -> mason package (and its server) whose cut-off install is repaired when such a file opens
+---@type table<string, { package: string, server: string }>
+local REPAIR_ON_OPEN = {
+    lua = { package = 'lua-language-server', server = 'lua_ls' },
+}
+local repair_tried = {} ---@type table<string, true> once per session, so a failing repair doesn't loop
+
+---Silently reinstall a package whose folder has no receipt (lsp/receipt.lua), then attach its
+---server to the open buffers. mason's own install, so the launcher, schema links and receipt get
+---written; moving mason/staging into place would leave those out. Only a failure is reported:
+---it fails again while another nvim still runs the old server.
+---@param item { package: string, server: string }
+local function repair(item)
+    local name = item.package
+    local broken = require('genja.lsp.receipt').check(name)
+    if not broken or repair_tried[name] then
+        return
+    end
+    repair_tried[name] = true
+    local ok, pkg = pcall(require('mason-registry').get_package, name)
+    if not ok or pkg:is_installing() then
+        return
+    end
+    pkg:install({ force = true }, vim.schedule_wrap(function(success)
+        if success then
+            -- enable() runs FileType again for open buffers, so they attach without :e
+            vim.lsp.enable(item.server)
+        else
+            local fix = require('genja.lsp.receipt').fix(broken)
+            vim.notify((SRC .. '%s: install was cut off and the reinstall failed (old files still in use?); fix: %s')
+                :format(name, fix), vim.log.levels.ERROR)
+        end
+    end))
+end
+
 ---Servers and tools of every enabled language.
 ---@param config genja.lsp.Opts
 ---@param apply? boolean call vim.lsp.config() for each server
@@ -170,6 +205,18 @@ function M.setup(opts)
 	})
 	if install then
 		install_tools(tools)
+		vim.api.nvim_create_autocmd('FileType', {
+			group = vim.api.nvim_create_augroup('genja.lsp.repair', { clear = true }),
+			pattern = vim.tbl_keys(REPAIR_ON_OPEN),
+			desc = 'mason: reinstall a server whose install was cut off',
+			callback = function(args)
+				repair(REPAIR_ON_OPEN[args.match])
+			end,
+		})
+		-- setup() may run after the first file's FileType (VeryLazy)
+		if REPAIR_ON_OPEN[vim.bo.filetype] then
+			repair(REPAIR_ON_OPEN[vim.bo.filetype])
+		end
 	end
 
 	-- :EnableLang [-on|-off] [-save] <lang>
