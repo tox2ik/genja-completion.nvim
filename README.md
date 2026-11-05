@@ -11,11 +11,12 @@ Language servers and completion for Neovim 0.11+, as one plugin with one
 
 ## Install
 
-With lazy.nvim. While the plugin lives on disk, point `dir` at it:
+With lazy.nvim. The repo is `genja-completion.nvim`; `name` keeps the plugin's own name:
 
 ```lua
 {
-	dir = '~/path/to/genja-completion011.nvim', -- later: 'you/genja-completion011.nvim'
+	'tox2ik/genja-completion.nvim',
+	name = 'genja-completion011.nvim',
 	event = { 'BufReadPre', 'BufNewFile', 'VeryLazy' },
 	cmd = 'Mason',
 	dependencies = {
