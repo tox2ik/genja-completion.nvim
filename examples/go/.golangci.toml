@@ -1,0 +1,19 @@
+# golangci-lint v2 config, a starting point. genja's config lints Go with golangci-lint only in
+# projects that have a .golangci.{yml,yaml,toml,json}; gopls covers the rest.
+version = "2"
+
+[linters]
+# the standard set: errcheck, govet, ineffassign, staticcheck, unused
+default = "standard"
+enable = [
+    "misspell",   # common English misspellings in comments and strings
+    "revive",     # style, the successor of golint
+    "gocritic",   # bugs, performance and style checks
+    "unconvert",  # needless type conversions
+]
+
+[linters.settings.misspell]
+locale = "US"
+
+[formatters]
+enable = ["gofmt", "goimports"]
