@@ -195,6 +195,15 @@ return {
 and turn it on with `lsp = { enabled = { yaml = true } }`. A file with the same
 name as one shipped here replaces it.
 
+A language module covers the server and its Mason tools. The rest of a language
+lives outside this plugin, each in its own place:
+
+- a treesitter parser for highlighting and text objects (`require('nvim-treesitter').install`);
+- a filetype mapping when Neovim doesn't know the extension (`lua/genja/ft/<ft>.lua`, see Filetypes);
+- linters the server doesn't cover (nvim-lint's `linters_by_ft`), ideally only when the project has their config;
+- a test runner (a neotest adapter, or an overseer template);
+- a debug adapter (nvim-dap), if you debug that language.
+
 ### Per-machine overrides
 
 `lua/genja/lsp/local.lua` in your Neovim config directory has the same shape as
