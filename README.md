@@ -57,7 +57,9 @@ require('genja').setup({
 			bash = true,
 			lua = true,
 			c_cpp = false,
+			css = false,
 			go = false,
+			html = false,
 			json = true,
 			php = false,
 			powershell = false,
@@ -109,7 +111,9 @@ start in buffers opened afterwards (or after `:e`).
 | `bash`       | bashls                   | shellcheck, shfmt |
 | `c_cpp`      | clangd                   |                   |
 | `gitconfig`  | none\*\*\*                 |                   |
+| `css`        | cssls                    |                   |
 | `go`         | gopls (see [Go](#go))    |                   |
+| `html`       | html                     |                   |
 | `json`       | jsonls                   |                   |
 | `lua`        | lua_ls                   |                   |
 | `make`       | autotools_ls\*\*         | make parse errors\*\*\* |

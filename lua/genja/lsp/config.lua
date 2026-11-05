@@ -15,8 +15,10 @@
 ---@class genja.lsp.Enabled: { [string]: boolean }
 ---@field bash? boolean
 ---@field c_cpp? boolean
+---@field css? boolean
 ---@field gitconfig? boolean
 ---@field go? boolean
+---@field html? boolean
 ---@field json? boolean
 ---@field lua? boolean
 ---@field make? boolean
@@ -54,6 +56,8 @@ return {
 
 		-- langs
 		typescript = false,
+		css = false,
+		html = false,
 		c_cpp = false,
 		go = false,
 		json = true,
