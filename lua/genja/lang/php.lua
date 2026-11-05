@@ -30,6 +30,8 @@
 --              then `phpactor index:build --reset` in the project (inside WSL).
 --   Laravel    artisan in the root. Facades and model magic need
 --              barryvdh/laravel-ide-helper's _ide_helper*.php files.
+--   Drupal     core/lib/Drupal.php in the root, web/ or docroot/. phpactor also indexes
+--              .module .inc .install .theme .profile .engine (ft/drupal.lua maps them to php).
 --   Symfony    bin/console or symfony.lock in the root. Turns on phpactor's Symfony
 --              extension; run the app or `bin/console cache:warmup` once.
 --
@@ -312,6 +314,15 @@ local function is_laravel(root)
 	return has(root, 'artisan')
 end
 
+---Drupal 8+: core/lib/Drupal.php in the root, or in web/ or docroot/ (composer projects).
+---@param root string
+local function is_drupal(root)
+	return has_any(root, { 'core/lib/Drupal.php', 'web/core/lib/Drupal.php', 'docroot/core/lib/Drupal.php' })
+end
+
+---Drupal's PHP files besides .php; ft/drupal.lua maps them to php inside a Drupal tree.
+local DRUPAL_EXTENSIONS = { 'php', 'phar', 'module', 'inc', 'install', 'theme', 'profile', 'engine' }
+
 local warned = {} ---@type table<string, true>
 
 ---Phpactor options for the project at root (a Windows path on Windows).
@@ -353,6 +364,11 @@ local function project_options(root)
 
 	if has(root, 'bin/console') or has(root, 'symfony.lock') then
 		options['symfony.enabled'] = true
+	end
+
+	-- hooks and procedural code live in .module, .inc, .install ... files, which phpactor skips by default
+	if is_drupal(root) then
+		options['indexer.supported_extensions'] = DRUPAL_EXTENSIONS
 	end
 
 	local phpstan = bin(root, 'phpstan')
