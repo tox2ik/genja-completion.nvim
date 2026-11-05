@@ -109,7 +109,7 @@ start in buffers opened afterwards (or after `:e`).
 | key          | servers                  | extra tools       |
 | ------------ | ------------------------ | ----------------- |
 | `bash`       | bashls                   | shellcheck, shfmt |
-| `c_cpp`      | clangd                   |                   |
+| `c_cpp`      | clangd (no compile database: fallback flags, no diagnostics; `:CCompileDb`) |                   |
 | `gitconfig`  | none\*\*\*                 |                   |
 | `css`        | cssls                    |                   |
 | `go`         | gopls (see [Go](#go))    |                   |
