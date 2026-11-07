@@ -40,6 +40,26 @@ Read README.md for the user-facing picture.
    - `README.md`: the options block and the Languages table (alphabetical).
 4. Verify headless (below). Do not commit unless asked.
 
+### Look at LazyVim and AstroNvim first
+
+Before writing a language or its tooling (servers, Mason tools, linters, formatters, parsers, filetypes, test and
+debug adapters), look at how the two big distributions set it up and use that as a starting point:
+
+- LazyVim language extras (`:LazyExtras`, modular packs for Go, Docker, Helm, Terraform, Python and more):
+  <https://www.lazyvim.org/extras/lang>; source `lua/lazyvim/plugins/extras/lang/<name>.lua` in the LazyVim repo.
+- AstroCommunity packs (`astrocommunity/pack/<name>`): <https://github.com/AstroNvim/astrocommunity/tree/main/lua/astrocommunity/pack>.
+
+Read what they pick: which server (and which of several), Mason packages, `root_markers`, filetype additions,
+treesitter parsers, linters and formatters per filetype, settings that matter. Take the choices that fit, not the files.
+
+- Don't copy their configs or depend on their plugin layout (`opts` merging, `LazyVim.*` helpers, community specs).
+  genja is more modular: one `lang/<name>.lua` module per language, switched on per machine, with linters in
+  `lua/genja/ext/lint.lua` and parsers in `lua/lazyp/my/load-treesitter.lua`.
+- Note in the language module's header comment when a choice came from them or deliberately differs
+  (e.g. "LazyVim uses X; here Y because ...").
+- Same rule as the config's "survey first": use their idea only when it fits genja's mental model; check platform
+  support (Windows) before adopting a tool, since both distributions assume Linux or macOS first.
+
 ## Verifying a server headless
 
 Write a sample file (with a deliberate error) to the scratchpad, then:
